@@ -329,10 +329,39 @@ function PwaRuntime() {
     window.addEventListener("offline", handleOffline);
 
     if ("serviceWorker" in navigator) {
-      void navigator.serviceWorker.register("/sw.js", {
-        scope: "/",
-        updateViaCache: "none",
+      let refreshing = false;
+
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (refreshing) {
+          return;
+        }
+
+        refreshing = true;
+        window.location.reload();
       });
+
+      void navigator.serviceWorker
+        .register("/sw.js", {
+          scope: "/",
+          updateViaCache: "none",
+        })
+        .then((registration) => {
+          if (registration.waiting) {
+            registration.waiting.postMessage({ type: "SKIP_WAITING" });
+          }
+
+          registration.addEventListener("updatefound", () => {
+            const worker = registration.installing;
+
+            worker?.addEventListener("statechange", () => {
+              if (worker.state === "installed" && navigator.serviceWorker.controller) {
+                worker.postMessage({ type: "SKIP_WAITING" });
+              }
+            });
+          });
+
+          return registration.update();
+        });
     }
 
     return () => {

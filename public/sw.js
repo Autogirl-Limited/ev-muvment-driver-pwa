@@ -1,6 +1,5 @@
-const CACHE_NAME = "muvment-driver-pwa-v1";
-const APP_SHELL = [
-  "/",
+const CACHE_NAME = "muvment-driver-pwa-v2";
+const STATIC_ASSETS = [
   "/icon-512.png",
   "/sedan.png",
   "/electric-sedan.png",
@@ -9,7 +8,7 @@ const APP_SHELL = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)),
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS)),
   );
   self.skipWaiting();
 });
@@ -41,8 +40,11 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put("/", copy));
+          if (response.ok && url.pathname === "/") {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put("/", copy));
+          }
+
           return response;
         })
         .catch(() => caches.match("/")),
@@ -50,20 +52,39 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) {
-        return cached;
-      }
+  if (isStaticPwaAsset(url)) {
+    event.respondWith(cacheFirst(request));
+    return;
+  }
 
-      return fetch(request).then((response) => {
-        if (response.ok) {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-        }
+  if (url.pathname.startsWith("/_next/")) {
+    event.respondWith(fetch(request));
+  }
+});
 
-        return response;
-      });
-    }),
-  );
+function isStaticPwaAsset(url) {
+  return STATIC_ASSETS.includes(url.pathname);
+}
+
+async function cacheFirst(request) {
+  const cached = await caches.match(request);
+
+  if (cached) {
+    return cached;
+  }
+
+  const response = await fetch(request);
+
+  if (response.ok) {
+    const cache = await caches.open(CACHE_NAME);
+    await cache.put(request, response.clone());
+  }
+
+  return response;
+}
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
 });

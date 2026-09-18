@@ -1,35 +1,42 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Muvment Driver PWA
+
+Installable PWA version of the existing `ev-driver` mobile application.
+
+## What is implemented
+
+- PWA manifest and service worker registration.
+- Auth/session flow matching the mobile app API envelope.
+- Login with EMAIL OTP/TOTP challenge support.
+- Driver tabs for home, activity, charging, payment lookup, and profile.
+- Offline banner, cached shell/assets, guarded session parsing, and queued retryable driver actions.
+- Phase/audit notes in `docs/pwa-phases-and-mobile-reliability.md`.
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Configuration
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Set `NEXT_PUBLIC_API_BASE_URL` to override the default staging API:
 
-## Learn More
+```bash
+NEXT_PUBLIC_API_BASE_URL=https://example.com npm run dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Verification
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm run lint
+npm run build
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Notes
 
-## Deploy on Vercel
+The mobile app currently has mock-backed operational driver screens. The PWA keeps those same surfaces mock-backed until the backend exposes stable shift, charging, activity, and payment lookup endpoints. Future queued mutations should be allowlisted and backed by server-side idempotency.
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 

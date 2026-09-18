@@ -55,6 +55,7 @@ type ProfileUtilityView =
   | `legal:${LegalView}`
   | "notification-settings";
 type AppView = Tab | "notifications" | ProfileUtilityView;
+type AppearanceMode = "dark" | "light" | "system";
 type IconName =
   | "arrowLeft"
   | "bell"
@@ -76,6 +77,11 @@ type LoginOutcome =
       method: "EMAIL_OTP" | "TOTP";
       status: "two_factor_required";
     };
+
+type AppearanceContextValue = {
+  mode: AppearanceMode;
+  setMode: (mode: AppearanceMode) => void;
+};
 
 const notificationFilters = ["All", "Unread", "Read", "High", "Urgent"] as const;
 type NotificationFilter = (typeof notificationFilters)[number];
@@ -179,13 +185,60 @@ type AuthContextValue = {
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
+const AppearanceContext = createContext<AppearanceContextValue | null>(null);
 
 export function DriverPwaApp() {
   return (
-    <AuthProvider>
-      <PwaRuntime />
-      <AppShell />
-    </AuthProvider>
+    <AppearanceProvider>
+      <AuthProvider>
+        <PwaRuntime />
+        <AppShell />
+      </AuthProvider>
+    </AppearanceProvider>
+  );
+}
+
+function AppearanceProvider({ children }: PropsWithChildren) {
+  const [mode, setModeState] = useState<AppearanceMode>("system");
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      const savedMode = window.localStorage.getItem("muvment.driver.appearance");
+
+      if (savedMode === "dark" || savedMode === "light" || savedMode === "system") {
+        setModeState(savedMode);
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
+    function applyTheme() {
+      const resolvedMode =
+        mode === "system" ? (mediaQuery.matches ? "dark" : "light") : mode;
+
+      document.documentElement.dataset.theme = resolvedMode;
+      document.documentElement.style.colorScheme = resolvedMode;
+    }
+
+    applyTheme();
+    mediaQuery.addEventListener("change", applyTheme);
+
+    return () => mediaQuery.removeEventListener("change", applyTheme);
+  }, [mode]);
+
+  const setMode = useCallback((nextMode: AppearanceMode) => {
+    setModeState(nextMode);
+    window.localStorage.setItem("muvment.driver.appearance", nextMode);
+  }, []);
+
+  const value = useMemo(() => ({ mode, setMode }), [mode, setMode]);
+
+  return (
+    <AppearanceContext.Provider value={value}>
+      {children}
+    </AppearanceContext.Provider>
   );
 }
 
@@ -391,6 +444,16 @@ function useAuth() {
 
   if (!context) {
     throw new Error("useAuth must be used inside AuthProvider");
+  }
+
+  return context;
+}
+
+function useAppearance() {
+  const context = useContext(AppearanceContext);
+
+  if (!context) {
+    throw new Error("useAppearance must be used inside AppearanceProvider");
   }
 
   return context;
@@ -689,6 +752,7 @@ function HomeScreen({
   const { user } = useAuth();
   const { driver, shift } = mockHomeDashboard;
   const [queue, setQueue] = useSyncedQueue();
+  const [vehicleExpanded, setVehicleExpanded] = useState(true);
   const firstName = user?.first_name ?? driver.firstName;
   const vehicle = shift.vehicle;
 
@@ -721,6 +785,7 @@ function HomeScreen({
 
       <button
         className="flex w-full items-center justify-between gap-4 text-left"
+        onClick={() => setVehicleExpanded((expanded) => !expanded)}
         type="button"
       >
         <div>
@@ -729,43 +794,51 @@ function HomeScreen({
             <h3 className="text-[23px] font-medium leading-[30px] text-[#1F2937]">
               {vehicle?.model ?? "No vehicle"}
             </h3>
-            <Icon name="chevronDown" size={18} />
+            <span
+              className={`transition-transform ${vehicleExpanded ? "rotate-180" : ""}`}
+            >
+              <Icon name="chevronDown" size={18} />
+            </span>
           </div>
         </div>
       </button>
 
-      <div className="flex min-h-[108px] flex-wrap items-center gap-2 rounded-2xl border border-[#E5E7EB] bg-[#FAFAFB] p-2">
-        <div className="min-h-[90px] min-w-[132px] flex-[1.3] rounded-xl border border-[#E5E7EB] bg-white p-3">
-          <p className="text-[13px] font-normal leading-[18px] text-[#69718C]">
-            Shift Time Left
-          </p>
-          <p className="mt-1 text-[28px] font-medium leading-[34px] text-black">
-            07h 43m
-          </p>
-        </div>
-        <ActionPill active icon="trendUp" label="Pickup" />
-        <ActionPill icon="bolt" label="Charging" />
-        <ActionPill icon="history" label="History" />
-      </div>
+      {vehicleExpanded ? (
+        <>
+          <div className="flex min-h-[108px] flex-wrap items-center gap-2 rounded-2xl border border-[#E5E7EB] bg-[#FAFAFB] p-2">
+            <div className="min-h-[90px] min-w-[132px] flex-[1.3] rounded-xl border border-[#E5E7EB] bg-white p-3">
+              <p className="text-[13px] font-normal leading-[18px] text-[#69718C]">
+                Shift Time Left
+              </p>
+              <p className="mt-1 text-[28px] font-medium leading-[34px] text-black">
+                07h 43m
+              </p>
+            </div>
+            <ActionPill active icon="trendUp" label="Pickup" />
+            <ActionPill icon="bolt" label="Charging" />
+            <ActionPill icon="history" label="History" />
+          </div>
 
-      <div className="flex flex-col items-center gap-2 pt-4">
-        <Image
-          alt="Assigned sedan"
-          className="h-auto w-full"
-          height={327}
-          priority
-          src="/sedan.png"
-          width={640}
-        />
-        <div className="text-center">
-          <p className="text-base font-medium leading-[22px] text-[#1F2937]">
-            {vehicle?.code}
-          </p>
-          <p className="text-[13px] font-normal leading-[18px] text-[#69718C]">
-            {vehicle?.plateNumber}
-          </p>
-        </div>
-      </div>
+          <div className="flex flex-col items-center gap-2 pt-4">
+            <Image
+              alt="Assigned sedan"
+              className="h-auto w-full"
+              height={327}
+              priority
+              src="/sedan.png"
+              width={640}
+            />
+            <div className="text-center">
+              <p className="text-base font-medium leading-[22px] text-[#1F2937]">
+                {vehicle?.code}
+              </p>
+              <p className="text-[13px] font-normal leading-[18px] text-[#69718C]">
+                {vehicle?.plateNumber}
+              </p>
+            </div>
+          </div>
+        </>
+      ) : null}
 
       <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4">
         <div className="mb-4 flex items-center justify-between gap-4">
@@ -1314,9 +1387,7 @@ function ProfileScreen({
   onOpenView: (view: ProfileUtilityView) => void;
 }) {
   const { logout, user, virtualAccount } = useAuth();
-  const [appearanceMode, setAppearanceMode] = useState<"dark" | "light" | "system">(
-    "system",
-  );
+  const { mode: appearanceMode, setMode: setAppearanceMode } = useAppearance();
   const [logoutError, setLogoutError] = useState("");
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const initials = `${user?.first_name?.[0] ?? "D"}${user?.last_name?.[0] ?? "R"}`.toUpperCase();

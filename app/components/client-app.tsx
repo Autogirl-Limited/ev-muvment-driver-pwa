@@ -47,6 +47,18 @@ import {
 
 type AuthStatus = "authenticated" | "loading" | "unauthenticated";
 type Tab = "home" | "activity" | "charging" | "payments" | "profile";
+type IconName =
+  | "bell"
+  | "bolt"
+  | "car"
+  | "chevronDown"
+  | "clock"
+  | "creditCard"
+  | "history"
+  | "home"
+  | "profile"
+  | "route"
+  | "trendUp";
 
 type LoginOutcome =
   | { status: "success" }
@@ -353,8 +365,8 @@ function AppShell() {
   }
 
   return (
-    <main className="min-h-screen bg-[#F6F8FB] pb-24 text-[#1F2937]">
-      <div className="mx-auto flex min-h-screen w-full max-w-[820px] flex-col px-4 pt-8">
+    <main className="min-h-screen bg-white pb-[168px] text-[#1F2937]">
+      <div className="mx-auto flex min-h-screen w-full max-w-[800px] flex-col gap-5 px-4 pt-3">
         {activeTab === "home" ? <HomeScreen /> : null}
         {activeTab === "activity" ? <ActivityScreen /> : null}
         {activeTab === "charging" ? <ChargingScreen /> : null}
@@ -449,7 +461,7 @@ function LoginScreen() {
           {error ? <p className="text-sm font-medium text-[#DC2626]">{error}</p> : null}
 
           <button
-            className="min-h-12 w-full rounded-lg bg-[#0673FF] px-4 py-3 text-base font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+            className="min-h-12 w-full rounded-[14px] bg-[#0673FF] px-4 py-3 text-sm font-semibold leading-[18px] text-white disabled:cursor-not-allowed disabled:opacity-50"
             disabled={
               isSubmitting ||
               !identifier.trim() ||
@@ -461,7 +473,7 @@ function LoginScreen() {
             {isSubmitting ? "Please wait..." : challenge ? "Verify Code" : "Sign In"}
           </button>
           <button
-            className="min-h-12 w-full rounded-lg border border-[#E5E7EB] bg-white px-4 py-3 text-base font-semibold text-[#1F2937]"
+            className="min-h-12 w-full rounded-[14px] border border-[#0673FF] bg-white px-4 py-3 text-sm font-semibold leading-[18px] text-[#0673FF]"
             type="button"
           >
             Become a Driver
@@ -492,7 +504,7 @@ function Field({
       <span className="mb-2 block text-sm font-medium text-[#1F2937]">{label}</span>
       <input
         autoComplete={autoComplete}
-        className="min-h-12 w-full rounded-lg border border-[#E5E7EB] bg-white px-4 text-base outline-none transition focus:border-[#0673FF] focus:ring-2 focus:ring-[#EAF3FF]"
+        className="min-h-12 w-full rounded-[13px] border border-[#E5E7EB] bg-white px-4 text-[15px] font-normal text-[#1F2937] outline-none transition placeholder:text-[#69718C] focus:border-[#0673FF] focus:ring-2 focus:ring-[#EAF3FF]"
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         type={type}
@@ -521,48 +533,78 @@ function HomeScreen() {
 
   return (
     <section className="space-y-5">
-      <header className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium text-[#69718C]">Driver PWA</p>
-          <h2 className="mt-1 text-2xl font-semibold">Good morning, {firstName}</h2>
-        </div>
-        <button className="relative h-11 w-11 rounded-lg border border-[#E5E7EB] bg-white text-sm font-semibold">
-          N
-          <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-[#DC2626]" />
+      <header className="flex items-center justify-between gap-4">
+        <h2 className="text-[24px] font-medium leading-[31px] text-[#1F2937]">
+          Good morning, {firstName}
+        </h2>
+        <button
+          aria-label="Open notifications"
+          className="relative flex h-[54px] w-[54px] items-center justify-center rounded-full border border-[#E5E7EB] bg-white text-[#1F2937]"
+          type="button"
+        >
+          <Icon name="bell" size={20} />
+          <span className="absolute right-4 top-[15px] h-2 w-2 rounded-full bg-[#EF4444]" />
         </button>
       </header>
 
-      <div className="rounded-lg border border-[#E5E7EB] bg-white p-4">
-        <p className="text-sm text-[#69718C]">Current vehicle</p>
-        <div className="mt-1 flex items-center justify-between gap-3">
-          <div>
-            <h3 className="text-xl font-semibold">{vehicle?.model ?? "No vehicle"}</h3>
-            <p className="text-sm text-[#69718C]">
-              {vehicle?.code} / {vehicle?.plateNumber}
-            </p>
+      <button
+        className="flex w-full items-center justify-between gap-4 text-left"
+        type="button"
+      >
+        <div>
+          <p className="text-[15px] font-normal leading-5 text-[#69718C]">Current vehicle</p>
+          <div className="mt-1 flex items-center gap-1">
+            <h3 className="text-[23px] font-medium leading-[30px] text-[#1F2937]">
+              {vehicle?.model ?? "No vehicle"}
+            </h3>
+            <Icon name="chevronDown" size={18} />
           </div>
-          <span className="rounded-full bg-[#F0FDF4] px-3 py-1 text-sm font-medium text-[#16A34A]">
-            Active
-          </span>
         </div>
+      </button>
+
+      <div className="flex min-h-[108px] flex-wrap items-center gap-2 rounded-2xl border border-[#E5E7EB] bg-[#FAFAFB] p-2">
+        <div className="min-h-[90px] min-w-[132px] flex-[1.3] rounded-xl border border-[#E5E7EB] bg-white p-3">
+          <p className="text-[13px] font-normal leading-[18px] text-[#69718C]">
+            Shift Time Left
+          </p>
+          <p className="mt-1 text-[28px] font-medium leading-[34px] text-black">
+            07h 43m
+          </p>
+        </div>
+        <ActionPill active icon="trendUp" label="Pickup" />
+        <ActionPill icon="bolt" label="Charging" />
+        <ActionPill icon="history" label="History" />
+      </div>
+
+      <div className="flex flex-col items-center gap-2 pt-4">
         <Image
           alt="Assigned sedan"
-          className="mt-4 h-auto w-full"
+          className="h-auto w-full"
           height={327}
           priority
           src="/sedan.png"
           width={640}
         />
+        <div className="text-center">
+          <p className="text-base font-medium leading-[22px] text-[#1F2937]">
+            {vehicle?.code}
+          </p>
+          <p className="text-[13px] font-normal leading-[18px] text-[#69718C]">
+            {vehicle?.plateNumber}
+          </p>
+        </div>
       </div>
 
-      <div className="rounded-lg border border-[#E5E7EB] bg-white p-4">
-        <div className="mb-4 flex items-center justify-between gap-3">
+      <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4">
+        <div className="mb-4 flex items-center justify-between gap-4">
           <div>
-            <p className="text-sm text-[#69718C]">Today&apos;s shift</p>
-            <h3 className="text-xl font-semibold">On shift</h3>
+            <p className="text-[13px] font-normal leading-[18px] text-[#69718C]">
+              Today&apos;s shift
+            </p>
+            <h3 className="text-[22px] font-medium leading-7 text-black">On shift</h3>
           </div>
-          <span className="rounded-full bg-[#EAF3FF] px-3 py-1 text-sm font-medium text-[#0673FF]">
-            07h 43m left
+          <span className="rounded-full bg-[#F0FDF4] px-3 py-1 text-[13px] font-medium leading-[18px] text-[#16A34A]">
+            Active
           </span>
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -572,7 +614,7 @@ function HomeScreen() {
           <InfoCell label="Final deadline" value="11:00 PM" />
         </div>
         <button
-          className="mt-4 min-h-12 w-full rounded-lg bg-[#0673FF] px-4 py-3 font-semibold text-white"
+          className="mt-4 min-h-12 w-full rounded-[14px] bg-[#0673FF] px-4 py-3 text-sm font-semibold leading-[18px] text-white"
           onClick={handleDropoff}
           type="button"
         >
@@ -585,25 +627,51 @@ function HomeScreen() {
         ) : null}
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <MetricCard label="Battery" value="72%" helper="34 min left" />
-        <MetricCard label="Range" value="280" helper="km left" />
-        <MetricCard label="Allowance" value="8.2" helper="kWh left" />
-        <MetricCard label="Shift" value="On" helper="Status locked" />
+      <div className="grid grid-cols-2 gap-2">
+        <MetricCard icon="bolt" label="Battery" value="72%" helper="34 min left" progress={72} />
+        <MetricCard icon="route" label="Estimated Range" value="280" helper="km left" />
+        <MetricCard icon="car" label="Allowance" value="8.2" helper="kWh left" />
+        <div className="flex min-h-[120px] flex-col justify-between rounded-2xl border border-[#E5E7EB] bg-white p-3">
+          <div>
+            <p className="text-sm font-normal leading-[19px] text-[#1F2937]">Shift Status</p>
+            <p className="mt-2 text-lg font-medium leading-6 text-black">On Shift</p>
+          </div>
+          <div className="flex h-8 w-14 items-center justify-end rounded-full bg-[#0673FF] p-1">
+            <span className="h-6 w-6 rounded-full bg-white shadow-sm" />
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4">
+        <div className="flex items-center gap-2">
+          <Icon className="text-[#69718C]" name="car" size={18} />
+          <p className="text-[13px] font-normal leading-[18px] text-[#69718C]">
+            Next action
+          </p>
+        </div>
+        <p className="mt-2 text-xl font-medium leading-[26px] text-black">
+          Start drop-off when your shift is complete
+        </p>
+        <p className="mt-2 text-sm font-normal leading-5 text-[#69718C]">
+          Final drop-off deadline is 11:00 PM today.
+        </p>
       </div>
 
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold">Needs attention</h3>
-          <span className="text-sm font-medium text-[#0673FF]">View all</span>
+          <h3 className="text-[19px] font-medium leading-6 text-[#1F2937]">Needs attention</h3>
+          <span className="text-sm font-medium leading-5 text-[#0673FF]">View all</span>
         </div>
         {shift.alerts.map((alert) => (
           <div
-            className="rounded-lg border border-[#E5E7EB] bg-white p-4"
+            className="flex gap-3 rounded-2xl border border-[#E5E7EB] bg-white p-4"
             key={alert.id}
           >
-            <p className="font-semibold">{alert.title}</p>
-            <p className="mt-1 text-sm text-[#69718C]">{alert.message}</p>
+            <span className="mt-[7px] h-2 w-2 shrink-0 rounded-full bg-[#D97706]" />
+            <div>
+              <p className="font-medium text-[#1F2937]">{alert.title}</p>
+              <p className="mt-1 text-sm text-[#69718C]">{alert.message}</p>
+            </div>
           </div>
         ))}
       </div>
@@ -645,7 +713,7 @@ function ActivityScreen() {
         title="Activity"
         subtitle="Previous shifts and immutable shift summaries."
       />
-      <div className="rounded-lg border border-[#E5E7EB] bg-white p-4">
+      <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4">
         <p className="text-sm text-[#69718C]">This week</p>
         <div className="mt-3 grid grid-cols-3 gap-3">
           <InfoCell label="Shifts" value="5" />
@@ -656,7 +724,7 @@ function ActivityScreen() {
       <div className="space-y-3">
         {shifts.map((shift) => (
           <div
-            className="rounded-lg border border-[#E5E7EB] bg-white p-4"
+            className="rounded-2xl border border-[#E5E7EB] bg-white p-4"
             key={shift.id}
           >
             <div className="flex items-start justify-between gap-3">
@@ -701,7 +769,7 @@ function ChargingScreen() {
         src="/electric-sedan.png"
         width={640}
       />
-      <div className="rounded-lg border border-[#E5E7EB] bg-white p-4">
+      <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-sm text-[#69718C]">Charging used</p>
@@ -711,9 +779,9 @@ function ChargingScreen() {
           </div>
           <p className="text-2xl font-semibold">{usedPercent}%</p>
         </div>
-        <div className="mt-4 h-10 overflow-hidden rounded-lg bg-[#F0F1F3]">
+        <div className="mt-4 h-[42px] overflow-hidden rounded-xl bg-[#F0F1F3]">
           <div
-            className="h-full rounded-lg bg-[#2FC866]"
+            className="h-full rounded-xl bg-[#2FC866]"
             style={{ width: `${usedPercent}%` }}
           />
         </div>
@@ -726,7 +794,7 @@ function ChargingScreen() {
           <InfoCell label="Status" value="Normal" />
         </div>
       </div>
-      <div className="rounded-lg border border-[#E5E7EB] bg-[#F8FAFC] p-4">
+      <div className="rounded-2xl border border-[#E5E7EB] bg-[#F8FAFC] p-4">
         <p className="font-semibold">Payment instructions</p>
         <p className="mt-2 text-sm text-[#69718C]">
           If your charging allowance is exceeded, payment instructions will
@@ -761,10 +829,10 @@ function PaymentsScreen() {
         title="Payment Lookup"
         subtitle="Search read-only transactions for your assigned vehicle."
       />
-      <div className="grid grid-cols-2 rounded-lg bg-[#EEF2F6] p-1">
+      <div className="grid grid-cols-2 rounded-[14px] bg-[#F3F4F6] p-1">
         {(["amount", "date"] as const).map((option) => (
           <button
-            className={`min-h-10 rounded-md text-sm font-medium ${
+            className={`min-h-10 rounded-[11px] text-sm font-normal ${
               mode === option ? "bg-white text-[#1F2937]" : "text-[#69718C]"
             }`}
             key={option}
@@ -778,7 +846,7 @@ function PaymentsScreen() {
           </button>
         ))}
       </div>
-      <div className="rounded-lg border border-[#E5E7EB] bg-white p-4">
+      <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4">
         {mode === "amount" ? (
           <Field
             label="Amount"
@@ -794,7 +862,7 @@ function PaymentsScreen() {
           </div>
         )}
         <button
-          className="mt-4 min-h-12 w-full rounded-lg bg-[#0673FF] px-4 py-3 font-semibold text-white"
+          className="mt-4 min-h-12 w-full rounded-[14px] bg-[#0673FF] px-4 py-3 text-sm font-semibold leading-[18px] text-white"
           onClick={() => setHasSearched(true)}
           type="button"
         >
@@ -809,7 +877,7 @@ function PaymentsScreen() {
         {results.length ? (
           results.map((result) => (
             <div
-              className="flex items-center justify-between gap-4 rounded-lg border border-[#E5E7EB] bg-white p-4"
+              className="flex items-center justify-between gap-4 rounded-2xl border border-[#E5E7EB] bg-white p-4"
               key={result.id}
             >
               <div>
@@ -822,7 +890,7 @@ function PaymentsScreen() {
             </div>
           ))
         ) : (
-          <div className="rounded-lg border border-[#E5E7EB] bg-white p-4">
+          <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4">
             <p className="font-semibold">No matching transaction</p>
             <p className="mt-1 text-sm text-[#69718C]">
               We could not find a transaction matching your search.
@@ -830,7 +898,7 @@ function PaymentsScreen() {
           </div>
         )}
       </div>
-      <div className="rounded-lg border border-[#E5E7EB] bg-[#F8FAFC] p-4">
+      <div className="rounded-2xl border border-[#E5E7EB] bg-[#F8FAFC] p-4">
         <p className="font-semibold">Read-only lookup</p>
         <p className="mt-1 text-sm text-[#69718C]">
           Drivers can search received transactions only. Confirmation and
@@ -874,7 +942,7 @@ function ProfileScreen() {
   return (
     <section className="space-y-5">
       <ScreenHeader title="Profile" subtitle="Driver account and app settings." />
-      <div className="flex items-center gap-4 rounded-lg border border-[#E5E7EB] bg-white p-4">
+      <div className="flex items-center gap-4 rounded-2xl border border-[#E5E7EB] bg-white p-4">
         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#EAF3FF] text-xl font-semibold text-[#0673FF]">
           {initials}
         </div>
@@ -885,7 +953,7 @@ function ProfileScreen() {
           <p className="text-sm text-[#69718C]">{user?.username ?? "Signed in"}</p>
         </div>
       </div>
-      <div className="divide-y divide-[#E5E7EB] rounded-lg border border-[#E5E7EB] bg-white">
+      <div className="divide-y divide-[#E5E7EB] overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white">
         <DetailRow label="Phone" value={user?.phone_number ?? "Not available"} />
         <DetailRow label="Email" value={user?.email ?? "Not available"} />
         <DetailRow label="Role" value={user?.user_type ?? "Not available"} />
@@ -902,14 +970,14 @@ function ProfileScreen() {
           }
         />
       </div>
-      <div className="rounded-lg border border-[#E5E7EB] bg-white p-4">
+      <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4">
         <div className="flex items-center justify-between gap-3">
           <h3 className="font-semibold">Notifications</h3>
           <span className="text-sm text-[#69718C]">{notifications.length} loaded</span>
         </div>
         <div className="mt-3 space-y-3">
           {notifications.slice(0, 3).map((notification) => (
-            <div className="rounded-lg bg-[#F8FAFC] p-3" key={notification.id}>
+            <div className="rounded-xl bg-[#F8FAFC] p-3" key={notification.id}>
               <p className="text-sm font-semibold">{notification.title}</p>
               <p className="mt-1 text-sm text-[#69718C]">{notification.description}</p>
             </div>
@@ -923,7 +991,7 @@ function ProfileScreen() {
       </div>
       {logoutError ? <p className="text-sm font-medium text-[#DC2626]">{logoutError}</p> : null}
       <button
-        className="min-h-12 w-full rounded-lg border border-[#E5E7EB] bg-white px-4 py-3 font-semibold text-[#1F2937] disabled:opacity-50"
+        className="min-h-12 w-full rounded-[14px] border border-[#0673FF] bg-white px-4 py-3 text-sm font-semibold leading-[18px] text-[#0673FF] disabled:opacity-50"
         disabled={isLoggingOut}
         onClick={handleLogout}
         type="button"
@@ -941,28 +1009,29 @@ function BottomTabs({
   activeTab: Tab;
   onTabChange: (tab: Tab) => void;
 }) {
-  const tabs: { label: string; tab: Tab }[] = [
-    { label: "Home", tab: "home" },
-    { label: "Activity", tab: "activity" },
-    { label: "Charging", tab: "charging" },
-    { label: "Payments", tab: "payments" },
-    { label: "Profile", tab: "profile" },
+  const tabs: { icon: IconName; label: string; tab: Tab }[] = [
+    { icon: "home", label: "Home", tab: "home" },
+    { icon: "history", label: "Activity", tab: "activity" },
+    { icon: "bolt", label: "Charging", tab: "charging" },
+    { icon: "creditCard", label: "Payments", tab: "payments" },
+    { icon: "profile", label: "Profile", tab: "profile" },
   ];
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 border-t border-[#E5E7EB] bg-white/95 px-2 pb-[max(env(safe-area-inset-bottom),8px)] pt-2 backdrop-blur">
+    <nav className="fixed inset-x-0 bottom-0 border-t border-[#E5E7EB] bg-white px-2 pb-[max(env(safe-area-inset-bottom),8px)] pt-2">
       <div className="mx-auto grid max-w-[820px] grid-cols-5 gap-1">
         {tabs.map((item) => (
           <button
-            className={`min-h-12 rounded-lg px-1 text-xs font-semibold ${
+            className={`flex min-h-[58px] flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-medium leading-[14px] ${
               activeTab === item.tab
                 ? "bg-[#EAF3FF] text-[#0673FF]"
-                : "text-[#69718C]"
+                : "text-[#9CA3AF]"
             }`}
             key={item.tab}
             onClick={() => onTabChange(item.tab)}
             type="button"
           >
+            <Icon name={item.icon} size={21} />
             {item.label}
           </button>
         ))}
@@ -973,27 +1042,71 @@ function BottomTabs({
 
 function InfoCell({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-[#E5E7EB] bg-[#FAFAFB] p-3">
-      <p className="text-xs text-[#69718C]">{label}</p>
-      <p className="mt-1 text-sm font-semibold">{value}</p>
+    <div className="rounded-xl border border-[#E5E7EB] bg-[#F8FAFC] p-3">
+      <p className="text-[13px] font-normal leading-[18px] text-[#69718C]">{label}</p>
+      <p className="mt-1 text-sm font-medium leading-5 text-[#1F2937]">{value}</p>
+    </div>
+  );
+}
+
+function ActionPill({
+  active,
+  icon,
+  label,
+}: {
+  active?: boolean;
+  icon: IconName;
+  label: string;
+}) {
+  return (
+    <div className="flex w-[62px] flex-col items-center gap-2">
+      <div
+        className={`flex h-11 w-11 items-center justify-center rounded-full border ${
+          active
+            ? "border-[#111111] bg-[#111111] text-white"
+            : "border-[#E5E7EB] bg-white text-[#1F2937]"
+        }`}
+      >
+        <Icon name={icon} size={18} />
+      </div>
+      <p className="text-center text-xs font-normal leading-4 text-[#69718C]">{label}</p>
     </div>
   );
 }
 
 function MetricCard({
   helper,
+  icon,
   label,
+  progress,
   value,
 }: {
   helper: string;
+  icon: IconName;
   label: string;
+  progress?: number;
   value: string;
 }) {
   return (
-    <div className="rounded-lg border border-[#E5E7EB] bg-white p-4">
-      <p className="text-sm text-[#69718C]">{label}</p>
-      <p className="mt-2 text-2xl font-semibold">{value}</p>
-      <p className="text-sm text-[#69718C]">{helper}</p>
+    <div className="min-h-[120px] rounded-2xl border border-[#E5E7EB] bg-white p-3">
+      <div className="flex items-center gap-2">
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#F3F4F6] text-[#69718C]">
+          <Icon name={icon} size={16} />
+        </div>
+        <p className="text-sm font-normal leading-[19px] text-[#1F2937]">{label}</p>
+      </div>
+      <div className="mt-3 flex items-end gap-2">
+        <p className="text-[31px] font-medium leading-9 text-black">{value}</p>
+        <p className="pb-1 text-[13px] font-normal leading-6 text-[#69718C]">{helper}</p>
+      </div>
+      {progress ? (
+        <div className="mt-3 h-9 overflow-hidden rounded-[10px] bg-[#F0F1F3]">
+          <div
+            className="h-full rounded-[10px] bg-[#2FC866]"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -1014,6 +1127,107 @@ function DetailRow({ label, value }: { label: string; value: string }) {
       <p className="mt-1 text-sm font-semibold">{value}</p>
     </div>
   );
+}
+
+function Icon({
+  className,
+  name,
+  size = 20,
+}: {
+  className?: string;
+  name: IconName;
+  size?: number;
+}) {
+  const common = {
+    className,
+    fill: "none",
+    height: size,
+    stroke: "currentColor",
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    strokeWidth: 2,
+    viewBox: "0 0 24 24",
+    width: size,
+  };
+
+  switch (name) {
+    case "bell":
+      return (
+        <svg {...common} aria-hidden="true">
+          <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
+          <path d="M13.7 21a2 2 0 0 1-3.4 0" />
+        </svg>
+      );
+    case "bolt":
+      return (
+        <svg {...common} aria-hidden="true">
+          <path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z" />
+        </svg>
+      );
+    case "car":
+      return (
+        <svg {...common} aria-hidden="true">
+          <path d="m5 11 1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11" />
+          <path d="M3 11h18v6H3z" />
+          <path d="M7 17v2" />
+          <path d="M17 17v2" />
+          <path d="M7 14h.01" />
+          <path d="M17 14h.01" />
+        </svg>
+      );
+    case "chevronDown":
+      return (
+        <svg {...common} aria-hidden="true">
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      );
+    case "clock":
+    case "history":
+      return (
+        <svg {...common} aria-hidden="true">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 7v5l3 2" />
+        </svg>
+      );
+    case "creditCard":
+      return (
+        <svg {...common} aria-hidden="true">
+          <rect height="14" rx="2" width="20" x="2" y="5" />
+          <path d="M2 10h20" />
+          <path d="M6 15h2" />
+        </svg>
+      );
+    case "home":
+      return (
+        <svg {...common} aria-hidden="true">
+          <path d="m3 11 9-8 9 8" />
+          <path d="M5 10v10h14V10" />
+          <path d="M9 20v-6h6v6" />
+        </svg>
+      );
+    case "profile":
+      return (
+        <svg {...common} aria-hidden="true">
+          <circle cx="12" cy="8" r="4" />
+          <path d="M4 21a8 8 0 0 1 16 0" />
+        </svg>
+      );
+    case "route":
+      return (
+        <svg {...common} aria-hidden="true">
+          <circle cx="6" cy="18" r="3" />
+          <circle cx="18" cy="6" r="3" />
+          <path d="M9 18h1a4 4 0 0 0 4-4v-4a4 4 0 0 1 4-4" />
+        </svg>
+      );
+    case "trendUp":
+      return (
+        <svg {...common} aria-hidden="true">
+          <path d="M7 17 17 7" />
+          <path d="M8 7h9v9" />
+        </svg>
+      );
+  }
 }
 
 function useSyncedQueue() {

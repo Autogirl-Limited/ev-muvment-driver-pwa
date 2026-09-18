@@ -17,7 +17,6 @@ import {
   ApiError,
   apiRequest,
   getMe,
-  listNotifications,
   login as loginRequest,
   logout as logoutRequest,
   refresh as refreshRequest,
@@ -49,7 +48,13 @@ import {
 
 type AuthStatus = "authenticated" | "loading" | "unauthenticated";
 type Tab = "home" | "activity" | "charging" | "payments" | "profile";
-type AppView = Tab | "notifications";
+type LegalView = "about" | "privacy-policy" | "terms";
+type ProfileUtilityView =
+  | "change-password"
+  | "edit-profile"
+  | `legal:${LegalView}`
+  | "notification-settings";
+type AppView = Tab | "notifications" | ProfileUtilityView;
 type IconName =
   | "arrowLeft"
   | "bell"
@@ -74,6 +79,81 @@ type LoginOutcome =
 
 const notificationFilters = ["All", "Unread", "Read", "High", "Urgent"] as const;
 type NotificationFilter = (typeof notificationFilters)[number];
+
+const legalContent: Record<
+  LegalView,
+  {
+    title: string;
+    sourceLabel: string;
+    updated?: string;
+    sections: { heading: string; body: string }[];
+  }
+> = {
+  about: {
+    title: "About Muvment",
+    sourceLabel: "muvment.ng/about-us",
+    sections: [
+      {
+        heading: "Powering Africa mobility",
+        body: "Muvment by Autogirl is building an integrated sustainable mobility ecosystem across Africa, spanning premium rentals, EV ride-hailing, and fleet operations.",
+      },
+      {
+        heading: "Mission",
+        body: "The company mission is to make reliable, premium, and sustainable mobility accessible to every African.",
+      },
+      {
+        heading: "Operating footprint",
+        body: "Muvment started in Lagos and now operates across cities in Nigeria and Ghana with a growing EV fleet and partnerships across the mobility ecosystem.",
+      },
+    ],
+  },
+  "privacy-policy": {
+    title: "Privacy Policy",
+    sourceLabel: "muvment.ng/policy/privacy-policy",
+    updated: "Last updated March 31, 2026",
+    sections: [
+      {
+        heading: "Information collected",
+        body: "Muvment collects personal, rental, device, location, vehicle, and support information needed to provide mobility services and operate safely.",
+      },
+      {
+        heading: "How information is used",
+        body: "Information is used for operations, service delivery, billing, support, safety, compliance, business administration, and permitted communications.",
+      },
+      {
+        heading: "Security and rights",
+        body: "Muvment describes reasonable safeguards for personal data and notes that users may request access, correction, restriction, portability, deletion, or consent withdrawal where applicable.",
+      },
+      {
+        heading: "Contact",
+        body: "Privacy questions can be directed to info@muvment.ng or Muvment, 10 Anuoluwapo Close, Opebi, Ikeja, Lagos, Nigeria.",
+      },
+    ],
+  },
+  terms: {
+    title: "Terms",
+    sourceLabel: "host.muvment.ng/terms-of-service",
+    updated: "Last updated July 13, 2026",
+    sections: [
+      {
+        heading: "Overview",
+        body: "Muvment is operated by Autogirl Limited. Its host terms explain daily and monthly vehicle-hosting arrangements and related operational responsibilities.",
+      },
+      {
+        heading: "Payments and availability",
+        body: "The terms describe payment timing, pricing, availability expectations, and the requirement to honour accepted bookings or notify Muvment when unavailable.",
+      },
+      {
+        heading: "Drivers and compliance",
+        body: "Only registered drivers may be assigned to trips, and documents, insurance, and vehicle condition requirements must remain current.",
+      },
+      {
+        heading: "Disputes",
+        body: "The terms identify Nigerian law as governing law and describe good-faith negotiation, mediation, and arbitration for unresolved disputes.",
+      },
+    ],
+  },
+};
 
 type AuthContextValue = {
   accessToken: string | null;
@@ -385,7 +465,7 @@ function PwaRuntime() {
 function AppShell() {
   const { status } = useAuth();
   const [activeView, setActiveView] = useState<AppView>("home");
-  const activeTab: Tab = activeView === "notifications" ? "home" : activeView;
+  const activeTab = getActiveTab(activeView);
 
   if (status === "loading") {
     return (
@@ -413,11 +493,56 @@ function AppShell() {
         {activeView === "activity" ? <ActivityScreen /> : null}
         {activeView === "charging" ? <ChargingScreen /> : null}
         {activeView === "payments" ? <PaymentsScreen /> : null}
-        {activeView === "profile" ? <ProfileScreen /> : null}
+        {activeView === "profile" ? (
+          <ProfileScreen onOpenView={setActiveView} />
+        ) : null}
+        {activeView === "notification-settings" ? (
+          <NotificationSettingsScreen onBack={() => setActiveView("profile")} />
+        ) : null}
+        {activeView === "edit-profile" ? (
+          <PlaceholderUtilityScreen
+            onBack={() => setActiveView("profile")}
+            title="Edit Profile"
+            description="Profile editing will use the same account fields and validation as the mobile app."
+          />
+        ) : null}
+        {activeView === "change-password" ? (
+          <PlaceholderUtilityScreen
+            onBack={() => setActiveView("profile")}
+            title="Change Password"
+            description="Password changes stay behind the authenticated API flow and will match the mobile app form."
+          />
+        ) : null}
+        {activeView.startsWith("legal:") ? (
+          <LegalScreen
+            onBack={() => setActiveView("profile")}
+            slug={activeView.replace("legal:", "") as LegalView}
+          />
+        ) : null}
       </div>
       <BottomTabs activeTab={activeTab} onTabChange={(tab) => setActiveView(tab)} />
     </main>
   );
+}
+
+function getActiveTab(view: AppView): Tab {
+  switch (view) {
+    case "home":
+    case "activity":
+    case "charging":
+    case "payments":
+    case "profile":
+      return view;
+    case "notifications":
+      return "home";
+    case "change-password":
+    case "edit-profile":
+    case "legal:about":
+    case "legal:privacy-policy":
+    case "legal:terms":
+    case "notification-settings":
+      return "profile";
+  }
 }
 
 function LoginScreen() {
@@ -1183,22 +1308,18 @@ function PaymentsScreen() {
   );
 }
 
-function ProfileScreen() {
-  const { accessToken, logout, user, virtualAccount } = useAuth();
+function ProfileScreen({
+  onOpenView,
+}: {
+  onOpenView: (view: ProfileUtilityView) => void;
+}) {
+  const { logout, user, virtualAccount } = useAuth();
+  const [appearanceMode, setAppearanceMode] = useState<"dark" | "light" | "system">(
+    "system",
+  );
   const [logoutError, setLogoutError] = useState("");
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [notifications, setNotifications] = useState<DriverNotification[]>([]);
   const initials = `${user?.first_name?.[0] ?? "D"}${user?.last_name?.[0] ?? "R"}`.toUpperCase();
-
-  useEffect(() => {
-    if (!accessToken) {
-      return;
-    }
-
-    listNotifications(accessToken)
-      .then((result) => setNotifications(result.items))
-      .catch(() => setNotifications([]));
-  }, [accessToken]);
 
   async function handleLogout() {
     setLogoutError("");
@@ -1244,25 +1365,52 @@ function ProfileScreen() {
           }
         />
       </div>
-      <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4">
-        <div className="flex items-center justify-between gap-3">
-          <h3 className="font-semibold">Notifications</h3>
-          <span className="text-sm text-[#69718C]">{notifications.length} loaded</span>
+
+      <div className="divide-y divide-[#E5E7EB] overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white">
+        <SettingsRow label="Edit Profile" onPress={() => onOpenView("edit-profile")} />
+        <SettingsRow label="Change Password" onPress={() => onOpenView("change-password")} />
+        <SettingsRow
+          label="Notification Settings"
+          onPress={() => onOpenView("notification-settings")}
+        />
+        <SettingsRow label="Terms" onPress={() => onOpenView("legal:terms")} />
+        <SettingsRow
+          label="Privacy Policy"
+          onPress={() => onOpenView("legal:privacy-policy")}
+        />
+        <SettingsRow label="About" onPress={() => onOpenView("legal:about")} />
+      </div>
+
+      <div className="space-y-4 rounded-2xl border border-[#E5E7EB] bg-white p-4">
+        <div>
+          <p className="text-lg font-medium leading-6 text-black">Appearance</p>
+          <p className="mt-1 text-sm font-normal leading-5 text-[#69718C]">
+            Light, dark, or follow your system.
+          </p>
         </div>
-        <div className="mt-3 space-y-3">
-          {notifications.slice(0, 3).map((notification) => (
-            <div className="rounded-xl bg-[#F8FAFC] p-3" key={notification.id}>
-              <p className="text-sm font-semibold">{notification.title}</p>
-              <p className="mt-1 text-sm text-[#69718C]">{notification.description}</p>
-            </div>
+        <div className="grid grid-cols-3 gap-2">
+          {(["system", "light", "dark"] as const).map((mode) => (
+            <button
+              className={`min-h-11 rounded-[14px] border px-3 py-2 text-sm font-semibold leading-[18px] ${
+                appearanceMode === mode
+                  ? "border-[#0673FF] bg-[#0673FF] text-white"
+                  : "border-[#0673FF] bg-white text-[#0673FF]"
+              }`}
+              key={mode}
+              onClick={() => setAppearanceMode(mode)}
+              type="button"
+            >
+              {mode[0].toUpperCase() + mode.slice(1)}
+            </button>
           ))}
-          {!notifications.length ? (
-            <p className="text-sm text-[#69718C]">
-              Notifications will appear here when available.
-            </p>
-          ) : null}
         </div>
       </div>
+
+      <div className="flex justify-between gap-4 rounded-2xl border border-[#E5E7EB] bg-[#F8FAFC] p-4">
+        <p className="text-sm font-normal leading-5 text-[#69718C]">App Version</p>
+        <p className="text-sm font-medium leading-5 text-[#1F2937]">1.0.0</p>
+      </div>
+
       {logoutError ? <p className="text-sm font-medium text-[#DC2626]">{logoutError}</p> : null}
       <button
         className="min-h-12 w-full rounded-[14px] border border-[#0673FF] bg-white px-4 py-3 text-sm font-semibold leading-[18px] text-[#0673FF] disabled:opacity-50"
@@ -1272,6 +1420,145 @@ function ProfileScreen() {
       >
         {isLoggingOut ? "Logging out..." : "Logout"}
       </button>
+    </section>
+  );
+}
+
+function SettingsRow({
+  label,
+  onPress,
+}: {
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <button
+      className="flex min-h-[54px] w-full items-center justify-between gap-4 px-4 text-left"
+      onClick={onPress}
+      type="button"
+    >
+      <span className="text-[15px] font-normal leading-5 text-[#1F2937]">{label}</span>
+      <span className="text-2xl font-light leading-7 text-[#69718C]">›</span>
+    </button>
+  );
+}
+
+function NotificationSettingsScreen({ onBack }: { onBack: () => void }) {
+  const [locationEnabled, setLocationEnabled] = useState(true);
+  const [pushEnabled, setPushEnabled] = useState(true);
+
+  return (
+    <section className="space-y-5">
+      <BackButton onBack={onBack} />
+      <ScreenHeader
+        title="Notification Settings"
+        subtitle="Choose how Muvment reaches you during active driver operations."
+      />
+      <div className="divide-y divide-[#E5E7EB] overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white">
+        <SwitchRow
+          enabled={pushEnabled}
+          label="Push Notifications"
+          onChange={setPushEnabled}
+          value="Shift alerts, charging updates, and driver reminders."
+        />
+        <SwitchRow
+          enabled={locationEnabled}
+          label="Location"
+          onChange={setLocationEnabled}
+          value="Used for nearby charging, routing, pickup, and drop-off support."
+        />
+      </div>
+    </section>
+  );
+}
+
+function SwitchRow({
+  enabled,
+  label,
+  onChange,
+  value,
+}: {
+  enabled: boolean;
+  label: string;
+  onChange: (enabled: boolean) => void;
+  value: string;
+}) {
+  return (
+    <div className="flex min-h-[84px] items-center justify-between gap-4 p-4">
+      <div className="flex-1">
+        <p className="text-base font-medium leading-[22px] text-[#1F2937]">{label}</p>
+        <p className="mt-1 text-sm font-normal leading-5 text-[#69718C]">{value}</p>
+      </div>
+      <button
+        aria-pressed={enabled}
+        className={`flex h-8 w-14 shrink-0 items-center rounded-full p-1 transition ${
+          enabled ? "justify-end bg-[#0673FF]" : "justify-start bg-[#D1D5DB]"
+        }`}
+        onClick={() => onChange(!enabled)}
+        type="button"
+      >
+        <span className="h-6 w-6 rounded-full bg-white shadow-sm" />
+      </button>
+    </div>
+  );
+}
+
+function LegalScreen({
+  onBack,
+  slug,
+}: {
+  onBack: () => void;
+  slug: LegalView;
+}) {
+  const content = legalContent[slug];
+
+  return (
+    <section className="space-y-5">
+      <BackButton onBack={onBack} />
+      <header>
+        <h2 className="text-[30px] font-semibold leading-9 text-black">{content.title}</h2>
+        <p className="mt-2 text-[15px] font-normal leading-[22px] text-[#69718C]">
+          {content.updated ? `${content.updated} / ` : ""}
+          {content.sourceLabel}
+        </p>
+      </header>
+      <div className="space-y-3">
+        {content.sections.map((section) => (
+          <div
+            className="rounded-2xl border border-[#E5E7EB] bg-white p-4"
+            key={section.heading}
+          >
+            <p className="text-[17px] font-medium leading-[23px] text-[#1F2937]">
+              {section.heading}
+            </p>
+            <p className="mt-2 text-sm font-normal leading-5 text-[#69718C]">
+              {section.body}
+            </p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function PlaceholderUtilityScreen({
+  description,
+  onBack,
+  title,
+}: {
+  description: string;
+  onBack: () => void;
+  title: string;
+}) {
+  return (
+    <section className="space-y-5">
+      <BackButton onBack={onBack} />
+      <ScreenHeader title={title} subtitle={description} />
+      <div className="rounded-2xl border border-[#E5E7EB] bg-[#F8FAFC] p-4">
+        <p className="text-sm font-normal leading-5 text-[#69718C]">
+          This PWA screen is ready to be connected to the same backend flow as the mobile app.
+        </p>
+      </div>
     </section>
   );
 }
@@ -1391,6 +1678,19 @@ function ScreenHeader({ subtitle, title }: { subtitle: string; title: string }) 
       <h2 className="text-3xl font-semibold">{title}</h2>
       <p className="mt-2 text-[15px] leading-6 text-[#69718C]">{subtitle}</p>
     </header>
+  );
+}
+
+function BackButton({ onBack }: { onBack: () => void }) {
+  return (
+    <button
+      aria-label="Go back"
+      className="flex min-h-11 w-fit items-center justify-center text-[#1F2937]"
+      onClick={onBack}
+      type="button"
+    >
+      <Icon name="arrowLeft" size={28} />
+    </button>
   );
 }
 

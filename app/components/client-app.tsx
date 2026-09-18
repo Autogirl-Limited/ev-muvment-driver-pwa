@@ -27,6 +27,8 @@ import {
 import type {
   DriverNotification,
   LoginResponse,
+  NotificationPriority,
+  PaginatedResult,
   User,
   VirtualAccount,
 } from "@/app/lib/api-types";
@@ -47,7 +49,9 @@ import {
 
 type AuthStatus = "authenticated" | "loading" | "unauthenticated";
 type Tab = "home" | "activity" | "charging" | "payments" | "profile";
+type AppView = Tab | "notifications";
 type IconName =
+  | "arrowLeft"
   | "bell"
   | "bolt"
   | "car"
@@ -67,6 +71,9 @@ type LoginOutcome =
       method: "EMAIL_OTP" | "TOTP";
       status: "two_factor_required";
     };
+
+const notificationFilters = ["All", "Unread", "Read", "High", "Urgent"] as const;
+type NotificationFilter = (typeof notificationFilters)[number];
 
 type AuthContextValue = {
   accessToken: string | null;
@@ -348,7 +355,8 @@ function PwaRuntime() {
 
 function AppShell() {
   const { status } = useAuth();
-  const [activeTab, setActiveTab] = useState<Tab>("home");
+  const [activeView, setActiveView] = useState<AppView>("home");
+  const activeTab: Tab = activeView === "notifications" ? "home" : activeView;
 
   if (status === "loading") {
     return (
@@ -367,13 +375,18 @@ function AppShell() {
   return (
     <main className="min-h-screen bg-white pb-[168px] text-[#1F2937]">
       <div className="mx-auto flex min-h-screen w-full max-w-[800px] flex-col gap-5 px-4 pt-3">
-        {activeTab === "home" ? <HomeScreen /> : null}
-        {activeTab === "activity" ? <ActivityScreen /> : null}
-        {activeTab === "charging" ? <ChargingScreen /> : null}
-        {activeTab === "payments" ? <PaymentsScreen /> : null}
-        {activeTab === "profile" ? <ProfileScreen /> : null}
+        {activeView === "home" ? (
+          <HomeScreen onOpenNotifications={() => setActiveView("notifications")} />
+        ) : null}
+        {activeView === "notifications" ? (
+          <NotificationsScreen onBack={() => setActiveView("home")} />
+        ) : null}
+        {activeView === "activity" ? <ActivityScreen /> : null}
+        {activeView === "charging" ? <ChargingScreen /> : null}
+        {activeView === "payments" ? <PaymentsScreen /> : null}
+        {activeView === "profile" ? <ProfileScreen /> : null}
       </div>
-      <BottomTabs activeTab={activeTab} onTabChange={setActiveTab} />
+      <BottomTabs activeTab={activeTab} onTabChange={(tab) => setActiveView(tab)} />
     </main>
   );
 }
@@ -514,7 +527,11 @@ function Field({
   );
 }
 
-function HomeScreen() {
+function HomeScreen({
+  onOpenNotifications,
+}: {
+  onOpenNotifications: () => void;
+}) {
   const { user } = useAuth();
   const { driver, shift } = mockHomeDashboard;
   const [queue, setQueue] = useSyncedQueue();
@@ -540,6 +557,7 @@ function HomeScreen() {
         <button
           aria-label="Open notifications"
           className="relative flex h-[54px] w-[54px] items-center justify-center rounded-full border border-[#E5E7EB] bg-white text-[#1F2937]"
+          onClick={onOpenNotifications}
           type="button"
         >
           <Icon name="bell" size={20} />
@@ -676,6 +694,233 @@ function HomeScreen() {
         ))}
       </div>
     </section>
+  );
+}
+
+function NotificationsScreen({ onBack }: { onBack: () => void }) {
+  const { authRequest } = useAuth();
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [notifications, setNotifications] = useState<DriverNotification[]>([]);
+  const [selectedFilter, setSelectedFilter] =
+    useState<NotificationFilter>("All");
+  const [selectedNotification, setSelectedNotification] =
+    useState<DriverNotification | null>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const query = useMemo(() => {
+    if (selectedFilter === "Unread") return { isRead: false };
+    if (selectedFilter === "Read") return { isRead: true };
+    if (selectedFilter === "High") {
+      return { priority: "HIGH" as NotificationPriority };
+    }
+    if (selectedFilter === "Urgent") {
+      return { priority: "URGENT" as NotificationPriority };
+    }
+    return {};
+  }, [selectedFilter]);
+
+  const loadNotifications = useCallback(async () => {
+    setError("");
+    setIsLoading(true);
+
+    try {
+      const [list, unread] = await Promise.all([
+        authRequest<PaginatedResult<DriverNotification>>("/api/v1/notifications", {
+          query: { ...query, page: 1, page_size: 20 },
+        }),
+        authRequest<Record<string, number>>("/api/v1/notifications/unread-count"),
+      ]);
+
+      setNotifications(list.items);
+      setUnreadCount(Object.values(unread)[0] ?? 0);
+    } catch (nextError) {
+      setError(
+        nextError instanceof Error
+          ? nextError.message
+          : "Unable to load notifications.",
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, [authRequest, query]);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      void loadNotifications();
+    }, 0);
+
+    return () => window.clearTimeout(timeout);
+  }, [loadNotifications]);
+
+  async function handleReadAll() {
+    setError("");
+
+    try {
+      await authRequest<null>("/api/v1/notifications/read-all", {
+        method: "POST",
+      });
+      setSelectedNotification(null);
+      await loadNotifications();
+    } catch (nextError) {
+      setError(
+        nextError instanceof Error
+          ? nextError.message
+          : "Unable to mark notifications read.",
+      );
+    }
+  }
+
+  async function handleOpenNotification(notification: DriverNotification) {
+    setError("");
+
+    try {
+      const fullNotification = await authRequest<DriverNotification>(
+        `/api/v1/notifications/${notification.id}`,
+      );
+      setSelectedNotification(fullNotification);
+
+      if (!fullNotification.is_read) {
+        const updated = await authRequest<DriverNotification>(
+          `/api/v1/notifications/${notification.id}/read`,
+          { method: "PATCH" },
+        );
+        setSelectedNotification(updated);
+        await loadNotifications();
+      }
+    } catch (nextError) {
+      setError(
+        nextError instanceof Error
+          ? nextError.message
+          : "Unable to open notification.",
+      );
+    }
+  }
+
+  return (
+    <section className="space-y-5">
+      <button
+        aria-label="Go back"
+        className="flex min-h-11 items-center justify-center text-[#1F2937]"
+        onClick={onBack}
+        type="button"
+      >
+        <Icon name="arrowLeft" size={28} />
+      </button>
+
+      <header className="space-y-2">
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-[30px] font-semibold leading-9 text-black">
+              Notifications
+            </h2>
+            <p className="mt-2 text-[15px] font-normal leading-[22px] text-[#69718C]">
+              {unreadCount} unread message{unreadCount === 1 ? "" : "s"}.
+            </p>
+          </div>
+          <button
+            className="min-h-10 shrink-0 text-sm font-medium leading-5 text-[#0673FF]"
+            onClick={handleReadAll}
+            type="button"
+          >
+            Read all
+          </button>
+        </div>
+      </header>
+
+      <div className="flex flex-wrap gap-2">
+        {notificationFilters.map((filter) => {
+          const isSelected = selectedFilter === filter;
+
+          return (
+            <button
+              className={`rounded-full border px-3 py-2 text-[13px] font-normal leading-[18px] ${
+                isSelected
+                  ? "border-[#0673FF] bg-[#0673FF] text-white"
+                  : "border-[#E5E7EB] bg-[#F8FAFC] text-[#69718C]"
+              }`}
+              key={filter}
+              onClick={() => {
+                setSelectedFilter(filter);
+                setSelectedNotification(null);
+              }}
+              type="button"
+            >
+              {filter}
+            </button>
+          );
+        })}
+      </div>
+
+      {selectedNotification ? (
+        <div className="rounded-2xl border border-[#E5E7EB] bg-[#F8FAFC] p-4">
+          <p className="text-[17px] font-medium leading-[23px] text-[#1F2937]">
+            {selectedNotification.title}
+          </p>
+          <p className="mt-2 text-sm font-normal leading-5 text-[#69718C]">
+            {selectedNotification.description}
+          </p>
+        </div>
+      ) : null}
+
+      {error ? <p className="text-[13px] font-medium leading-[18px] text-[#DC2626]">{error}</p> : null}
+
+      <div className="space-y-2">
+        {isLoading ? (
+          <p className="text-sm font-normal leading-5 text-[#69718C]">
+            Loading notifications...
+          </p>
+        ) : notifications.length ? (
+          notifications.map((notification) => (
+            <NotificationRow
+              key={notification.id}
+              notification={notification}
+              onPress={() => void handleOpenNotification(notification)}
+            />
+          ))
+        ) : (
+          <p className="text-sm font-normal leading-5 text-[#69718C]">
+            No notifications found.
+          </p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function NotificationRow({
+  notification,
+  onPress,
+}: {
+  notification: DriverNotification;
+  onPress: () => void;
+}) {
+  return (
+    <button
+      className="w-full rounded-2xl border border-[#E5E7EB] bg-white p-4 text-left"
+      onClick={onPress}
+      type="button"
+    >
+      <div className="flex justify-between gap-4">
+        <div className="flex items-center gap-2">
+          {!notification.is_read ? (
+            <span className="h-2 w-2 rounded-full bg-[#0673FF]" />
+          ) : null}
+          <span className="text-xs font-normal leading-4 text-[#69718C]">
+            {notification.priority}
+          </span>
+        </div>
+        <span className="text-xs font-normal leading-4 text-[#69718C]">
+          {formatNotificationTime(notification.created_at)}
+        </span>
+      </div>
+      <p className="mt-2 text-[17px] font-medium leading-[23px] text-black">
+        {notification.title}
+      </p>
+      <p className="mt-1 text-sm font-normal leading-5 text-[#69718C]">
+        {notification.description}
+      </p>
+    </button>
   );
 }
 
@@ -1129,6 +1374,19 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+function formatNotificationTime(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+  });
+}
+
 function Icon({
   className,
   name,
@@ -1151,6 +1409,13 @@ function Icon({
   };
 
   switch (name) {
+    case "arrowLeft":
+      return (
+        <svg {...common} aria-hidden="true">
+          <path d="M19 12H5" />
+          <path d="m12 19-7-7 7-7" />
+        </svg>
+      );
     case "bell":
       return (
         <svg {...common} aria-hidden="true">

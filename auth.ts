@@ -64,7 +64,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    jwt({ token, user, trigger, session }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         const data = (user as unknown as { loginData: LoginData }).loginData;
         token.accessToken = data.access_token;
@@ -83,6 +83,27 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // The client may only ever flip this flag to true (after a successful password change).
       if (trigger === "update" && session?.hasChangedTemporaryPassword === true) {
         token.hasChangedTemporaryPassword = true;
+      }
+      // The client can ask for a fresh profile (shift, wallet balance, vehicle) but never supplies the data itself.
+      if (trigger === "update" && session?.refreshProfile === true && token.accessToken && token.profile) {
+        try {
+          const response = await fetch(`${BACKEND_URL}/users/me`, {
+            headers: { Authorization: `Bearer ${token.accessToken}` },
+            cache: "no-store",
+          });
+          const payload = (await response.json()) as ApiEnvelope<LoginData["user"]>;
+          if (response.ok && payload.data) {
+            const fresh = payload.data;
+            token.profile = {
+              ...token.profile,
+              user: { ...token.profile.user, ...fresh },
+              vehicle: fresh.vehicle ?? null,
+              virtual_account: fresh.virtual_account ?? token.profile.virtual_account,
+            };
+          }
+        } catch {
+          /* keep the profile we have; the next refresh will try again */
+        }
       }
       return token;
     },

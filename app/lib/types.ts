@@ -169,3 +169,21 @@ export type PickupRequestInput = {
 };
 
 export type Paginated<T> = { items: T[] };
+
+export type NotificationPriority = "LOW" | "MEDIUM" | "HIGH" | "URGENT";
+
+export type AppNotification = {
+  id: string;
+  created_at: string;
+  title: string;
+  description: string;
+  priority: NotificationPriority;
+  web_url: string | null;
+  mobile_app_url: string | null;
+  is_read: boolean;
+};
+
+export type Page<T> = {
+  items: T[];
+  pagination: { page: number; page_size: number; total_items: number; total_pages: number; has_next: boolean; has_prev: boolean };
+};

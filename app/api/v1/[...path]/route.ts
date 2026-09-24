@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
+import { readSessionToken } from "../../../lib/access-token";
 import { BACKEND_URL } from "../../../lib/server";
 
 /**
@@ -21,6 +21,10 @@ const ROUTES: Record<string, { methods: string[]; auth?: boolean }> = {
   "daily-checklists/start": { methods: ["POST"], auth: true },
   "pickup-requests": { methods: ["POST"], auth: true },
   "pickup-requests/mine": { methods: ["GET"], auth: true },
+  "notifications": { methods: ["GET"], auth: true },
+  "notifications/unread-count": { methods: ["GET"], auth: true },
+  "notifications/read-all": { methods: ["POST"], auth: true },
+  "users/me": { methods: ["GET"], auth: true },
 };
 
 /** Routes with an id in the path. */
@@ -29,6 +33,7 @@ const PATTERNS: [RegExp, { methods: string[]; auth?: boolean }][] = [
   [new RegExp(`^daily-checklists/${ID}$`), { methods: ["GET"], auth: true }],
   [new RegExp(`^daily-checklists/${ID}/(uploads|images|submit|reanalyze)$`), { methods: ["POST"], auth: true }],
   [new RegExp(`^daily-checklists/${ID}/dashboard$`), { methods: ["PATCH"], auth: true }],
+  [new RegExp(`^notifications/${ID}/read$`), { methods: ["PATCH"], auth: true }],
 ];
 
 const fail = (status: number, message: string) =>
@@ -45,13 +50,7 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
   let body = request.method === "GET" ? undefined : await request.text();
 
   if (route.auth) {
-    const secure = (request.headers.get("x-forwarded-proto") ?? request.nextUrl.protocol.replace(":", "")) === "https";
-    const token = await getToken({
-      req: request,
-      secret: process.env.AUTH_SECRET,
-      secureCookie: secure,
-      salt: `${secure ? "__Secure-" : ""}authjs.session-token`,
-    });
+    const token = await readSessionToken(request);
     if (!token?.accessToken) return fail(401, "Your session has expired. Please sign in again.");
     headers.Authorization = `Bearer ${token.accessToken}`;
     if (key === "auth/logout") body = JSON.stringify({ refresh_token: token.refreshToken ?? "" });

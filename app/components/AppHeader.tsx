@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ArrowLeft, Bell, EllipsisVertical, LogOut, Moon, Sun, UserRound } from "lucide-react";
 import { useSession } from "next-auth/react";
+import { useUnreadCount } from "../lib/queries";
 import { LogoutDialog } from "./LogoutDialog";
 import { applyTheme, currentTheme } from "../lib/theme";
 
@@ -25,6 +26,7 @@ export function AppHeader() {
   const pathname = usePathname();
   const router = useRouter();
   const firstName = useSession().data?.profile?.user.first_name;
+  const unread = useUnreadCount().data ?? 0;
   const [confirmingLogout, setConfirmingLogout] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   // The menu is tied to the route it was opened on, so navigating closes it automatically.
@@ -74,8 +76,9 @@ export function AppHeader() {
       </div>
 
       <div className="app-header-actions" ref={menuRef}>
-        <Link className="icon-button plain" href="/notifications" aria-label="Notifications">
+        <Link className="icon-button plain bell" href="/notifications" aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"}>
           <Bell size={22} />
+          {unread ? <span className="bell-badge">{unread > 99 ? "99+" : unread}</span> : null}
         </Link>
         <button
           aria-expanded={open}

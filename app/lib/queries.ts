@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type InfiniteData, type QueryClient } from "@tanstack/react-query";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { api, ApiError, type DateRange } from "./api";
 import { getPosition } from "./geo";
 import type { ChecklistPhaseName, DailyChecklist, DashboardReading, PickupRequestInput } from "./types";
-import type { TodayChecklists } from "./types";
+import type { AppNotification, Page, TodayChecklists } from "./types";
 
 export const USERNAME_RE = /^[a-zA-Z0-9_.]{3,50}$/;
 
@@ -231,5 +231,70 @@ export function useUpdateDashboard(id: string) {
   return useMutation({
     mutationFn: (body: DashboardReading) => api.updateDashboard(id, body),
     onSuccess: (checklist) => putChecklist(queryClient, checklist),
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* Notifications                                                       */
+/* ------------------------------------------------------------------ */
+export function useUnreadCount() {
+  const { status } = useSession();
+  return useQuery({
+    queryKey: ["notifications-unread"],
+    queryFn: () => api.unreadCount(),
+    enabled: status === "authenticated",
+    staleTime: 30_000,
+  });
+}
+
+export function useNotifications(unreadOnly: boolean) {
+  const { status } = useSession();
+  return useInfiniteQuery({
+    queryKey: ["notifications", unreadOnly ? "unread" : "all"],
+    queryFn: ({ pageParam }) => api.notifications(pageParam, unreadOnly),
+    initialPageParam: 1,
+    getNextPageParam: (last) => (last.pagination.has_next ? last.pagination.page + 1 : undefined),
+    enabled: status === "authenticated",
+    staleTime: 30_000,
+  });
+}
+
+type NotificationPages = InfiniteData<Page<AppNotification>>;
+
+export function useMarkRead() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.markNotificationRead(id),
+    onMutate: async (id) => {
+      // Flip it in every cached list straight away so the tap feels instant.
+      const wasUnread = queryClient
+        .getQueriesData<NotificationPages>({ queryKey: ["notifications"] })
+        .some(([, data]) => data?.pages.some((page) => page.items.some((n) => n.id === id && !n.is_read)));
+      queryClient.setQueriesData<NotificationPages>({ queryKey: ["notifications"] }, (data) =>
+        data && { ...data, pages: data.pages.map((page) => ({ ...page, items: page.items.map((n) => (n.id === id ? { ...n, is_read: true } : n)) })) },
+      );
+      if (wasUnread) queryClient.setQueryData<number>(["notifications-unread"], (count) => Math.max(0, (count ?? 1) - 1));
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      void queryClient.invalidateQueries({ queryKey: ["notifications-unread"] });
+    },
+  });
+}
+
+export function useMarkAllRead() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.markAllNotificationsRead(),
+    onMutate: () => {
+      queryClient.setQueriesData<NotificationPages>({ queryKey: ["notifications"] }, (data) =>
+        data && { ...data, pages: data.pages.map((page) => ({ ...page, items: page.items.map((n) => ({ ...n, is_read: true })) })) },
+      );
+      queryClient.setQueryData<number>(["notifications-unread"], 0);
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      void queryClient.invalidateQueries({ queryKey: ["notifications-unread"] });
+    },
   });
 }

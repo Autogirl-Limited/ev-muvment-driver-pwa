@@ -3384,3 +3384,294 @@ dialog.modal::backdrop {
 .cl-warning-add button:disabled {
   opacity: 0.4;
 }
+
+/* ------------------------------------------------------------------ */
+/* Notifications                                                       */
+/* ------------------------------------------------------------------ */
+.icon-button.bell {
+  position: relative;
+}
+
+.bell-badge {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.25rem;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0 0.3rem;
+  border: 2px solid var(--background);
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 750;
+  line-height: 0.95rem;
+  text-align: center;
+  animation: pop 320ms var(--ease) both;
+  box-sizing: content-box;
+}
+
+[data-theme="dark"] .bell-badge {
+  color: #1a0508;
+}
+
+.nt {
+  display: grid;
+  gap: 0.9rem;
+  padding-bottom: 1rem;
+}
+
+.nt-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.nt-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.nt-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+
+.nt-live i {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--subtle);
+}
+
+.nt-live.live {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.nt-live.live i {
+  background: var(--success);
+  animation: pulse 1.8s infinite;
+}
+
+.nt-readall {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.7rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.nt-readall:disabled {
+  opacity: 0.45;
+}
+
+.nt-tabs {
+  display: flex;
+  gap: 0.35rem;
+  padding: 0.25rem;
+  border-radius: 999px;
+  background: var(--surface-2);
+}
+
+.nt-tabs button {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 2.5rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 650;
+  transition: background-color 200ms, color 200ms;
+}
+
+.nt-tabs button[aria-selected="true"] {
+  background: var(--surface);
+  color: var(--foreground);
+  box-shadow: var(--shadow-sm);
+}
+
+.nt-tabs b {
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.68rem;
+}
+
+.nt-permission {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem;
+  border-radius: var(--radius-md);
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.nt-permission svg {
+  flex: none;
+}
+
+.nt-permission > div {
+  display: grid;
+  flex: 1;
+  gap: 0.1rem;
+  min-width: 0;
+  color: var(--foreground);
+}
+
+.nt-permission strong {
+  font-size: 0.88rem;
+}
+
+.nt-permission span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.nt-permission button {
+  flex: none;
+  padding: 0.5rem 0.85rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.nt-note {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.nt-day {
+  margin: 0.2rem 0 0.5rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.nt-list {
+  display: grid;
+  gap: 0.5rem;
+  list-style: none;
+}
+
+.nt-skeleton {
+  height: 5.2rem;
+  border-radius: var(--radius-md);
+  background: linear-gradient(100deg, var(--surface-2) 30%, var(--surface) 50%, var(--surface-2) 70%) 0 0 / 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+.nt-item {
+  --accent: var(--primary);
+  display: flex;
+  align-items: flex-start;
+  gap: 0.8rem;
+  width: 100%;
+  padding: 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  text-align: left;
+  animation: screen-in 320ms var(--ease) both;
+  transition: transform 160ms var(--ease), background-color 200ms;
+}
+
+.nt-item:active {
+  transform: scale(0.985);
+}
+
+.nt-item.p-high {
+  --accent: #d97706;
+}
+
+.nt-item.p-urgent {
+  --accent: var(--danger);
+}
+
+.nt-item.p-low {
+  --accent: var(--subtle);
+}
+
+.nt-item.unread {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+}
+
+.nt-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 0.8rem;
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  color: var(--accent);
+}
+
+.nt-body {
+  display: grid;
+  flex: 1;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.nt-body strong {
+  font-size: 0.93rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.nt-item:not(.unread) .nt-body strong {
+  font-weight: 600;
+}
+
+.nt-body > span {
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.nt-body small {
+  color: var(--subtle);
+  font-size: 0.74rem;
+}
+
+.nt-dot {
+  flex: none;
+  width: 0.6rem;
+  height: 0.6rem;
+  margin-top: 0.3rem;
+  border-radius: 50%;
+  background: var(--accent);
+}

@@ -1,5 +1,6 @@
 import type {
   ApiEnvelope,
+  AppNotification,
   ChargeStats,
   ChecklistPhaseName,
   DailyChecklist,
@@ -7,6 +8,7 @@ import type {
   DvaStats,
   FieldErrors,
   ImageType,
+  Page,
   Paginated,
   PickupRequest,
   PickupRequestInput,
@@ -117,6 +119,21 @@ export const api = {
   },
 
   createPickupRequest: (body: PickupRequestInput) => post<PickupRequest>("/pickup-requests", body),
+
+  // ---- Notifications ----
+  async notifications(page: number, unreadOnly: boolean) {
+    const params = new URLSearchParams({ page: String(page), page_size: "20" });
+    if (unreadOnly) params.set("isRead", "false");
+    return (await request<Page<AppNotification>>(`/notifications?${params}`)).data as Page<AppNotification>;
+  },
+
+  async unreadCount() {
+    return (await request<{ unread_count: number }>("/notifications/unread-count")).data?.unread_count ?? 0;
+  },
+
+  markNotificationRead: (id: string) => request<AppNotification>(`/notifications/${id}/read`, { method: "PATCH" }),
+
+  markAllNotificationsRead: () => post<null>("/notifications/read-all"),
 
   // ---- Daily checklist ----
   async startChecklist(phase: ChecklistPhaseName, position: Position) {

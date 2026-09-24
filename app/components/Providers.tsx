@@ -6,6 +6,7 @@ import { SessionProvider } from "next-auth/react";
 import type { Session } from "next-auth";
 import { Toaster } from "sonner";
 import { syncThemeColor } from "../lib/theme";
+import { RealtimeProvider } from "./RealtimeProvider";
 
 function subscribeToTheme(callback: () => void) {
   const observer = new MutationObserver(callback);
@@ -41,7 +42,7 @@ export function Providers({ session, children }: { session: Session | null; chil
   return (
     <SessionProvider session={session} refetchOnWindowFocus={false}>
       <QueryClientProvider client={queryClient}>
-        {children}
+        <RealtimeProvider>{children}</RealtimeProvider>
         <AppToaster />
       </QueryClientProvider>
     </SessionProvider>

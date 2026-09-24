@@ -83,13 +83,55 @@ export type ChargeStats = {
 export type ChecklistPhaseName = "PICK_UP" | "DROP_OFF";
 export type ChecklistWindow = { start_time: string; end_time: string };
 
+export type ImageType = "FRONT" | "REAR" | "LEFT" | "RIGHT" | "DASHBOARD";
+
+export type DashboardWarning = { code: string; label: string; severity: "INFO" | "WARNING" | "CRITICAL" };
+
+export type DashboardReading = {
+  is_electric?: boolean | null;
+  odometer_km?: number | null;
+  battery_percent?: number | null;
+  range_km?: number | null;
+  is_charging?: boolean | null;
+  fuel_level_percent?: number | null;
+  warnings?: DashboardWarning[] | null;
+};
+
+export type ChecklistImage = {
+  image_type: ImageType;
+  url: string | null;
+  analysis: { image_valid: boolean | null; image_issue: string | null; condition: string | null } | null;
+};
+
 export type DailyChecklist = {
   id: string;
   phase: ChecklistPhaseName;
   status: "IN_PROGRESS" | "SUBMITTED";
+  checklist_date: string;
   started_at: string | null;
   submitted_at: string | null;
-  missing_images: string[];
+  window: ChecklistWindow;
+  expected_location: { address: string | null; radius_meters: number } | null;
+  images: ChecklistImage[];
+  missing_images: ImageType[];
+  analysis: { status: "NOT_STARTED" | "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED"; error: string | null };
+  dashboard: { effective: DashboardReading | null; driver_edits: DashboardReading | null; driver_edited_at: string | null } | null;
+  condition: { status: "GOOD" | "NOT_GOOD" | "UNCLEAR"; summary: string | null } | null;
+  comparison: {
+    verdict: "NO_CHANGE" | "MINOR_CHANGES" | "NEW_DAMAGE" | "UNCLEAR" | null;
+    new_damage: { side: string; type: string; severity: string; description: string }[];
+    notes: string | null;
+    dashboard_changes: { distance_driven_km?: number | null; battery_percent_change?: number | null } | null;
+  } | null;
+  flags: { code: string; severity: "INFO" | "WARNING" | "CRITICAL"; message: string }[];
+};
+
+export type UploadTarget = {
+  image_type: ImageType;
+  object_key: string;
+  upload_url: string;
+  method: string;
+  headers: Record<string, string>;
 };
 
 export type ChecklistPhase = {

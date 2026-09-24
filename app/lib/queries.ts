@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { api, ApiError, type DateRange } from "./api";
-import type { PickupRequestInput } from "./types";
+import { getPosition } from "./geo";
+import type { ChecklistPhaseName, DailyChecklist, DashboardReading, PickupRequestInput } from "./types";
+import type { TodayChecklists } from "./types";
 
 export const USERNAME_RE = /^[a-zA-Z0-9_.]{3,50}$/;
 
@@ -159,5 +161,75 @@ export function useCreatePickupRequest() {
   return useMutation({
     mutationFn: (body: PickupRequestInput) => api.createPickupRequest(body),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["pickup-requests-mine"] }),
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* Daily checklist                                                     */
+/* ------------------------------------------------------------------ */
+type TodayCache = { data: TodayChecklists | null; receivedAt: number };
+
+/** Writes a fresh checklist into today's overview, so the home screen and the flow share one truth. */
+export function putChecklist(queryClient: QueryClient, checklist: DailyChecklist) {
+  queryClient.setQueryData<TodayCache>(["daily-checklists-today"], (old) => {
+    if (!old?.data) return old;
+    const submitted = checklist.status === "SUBMITTED";
+    const phases = old.data.phases.map((p) =>
+      p.phase === checklist.phase ? { ...p, checklist, can_start: submitted ? false : p.can_start } : p,
+    );
+    return { ...old, data: { ...old.data, phases } };
+  });
+}
+
+export function useStartChecklist() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (phase: ChecklistPhaseName) => api.startChecklist(phase, await getPosition()),
+    onSuccess: (checklist) => putChecklist(queryClient, checklist),
+  });
+}
+
+export function useSubmitChecklist(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => api.submitChecklist(id, await getPosition()),
+    onSuccess: (checklist) => putChecklist(queryClient, checklist),
+  });
+}
+
+/** Watches a submitted checklist while the AI reads it, then stops. */
+export function useChecklistAnalysis(id: string, enabled: boolean) {
+  const queryClient = useQueryClient();
+  return useQuery({
+    queryKey: ["daily-checklist", id],
+    queryFn: async () => {
+      const checklist = await api.getChecklist(id);
+      putChecklist(queryClient, checklist);
+      return checklist;
+    },
+    enabled,
+    refetchInterval: (query) => {
+      const status = query.state.data?.analysis.status;
+      return !status || status === "PENDING" || status === "PROCESSING" ? 3000 : false;
+    },
+  });
+}
+
+export function useReanalyze(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.reanalyzeChecklist(id),
+    onSuccess: (checklist) => {
+      putChecklist(queryClient, checklist);
+      void queryClient.invalidateQueries({ queryKey: ["daily-checklist", id] });
+    },
+  });
+}
+
+export function useUpdateDashboard(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: DashboardReading) => api.updateDashboard(id, body),
+    onSuccess: (checklist) => putChecklist(queryClient, checklist),
   });
 }

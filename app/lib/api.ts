@@ -1,12 +1,17 @@
 import type {
   ApiEnvelope,
   ChargeStats,
+  ChecklistPhaseName,
+  DailyChecklist,
+  DashboardReading,
   DvaStats,
   FieldErrors,
+  ImageType,
   Paginated,
   PickupRequest,
   PickupRequestInput,
   TodayChecklists,
+  UploadTarget,
   WalletStats,
 } from "./types";
 
@@ -113,6 +118,61 @@ export const api = {
 
   createPickupRequest: (body: PickupRequestInput) => post<PickupRequest>("/pickup-requests", body),
 
+  // ---- Daily checklist ----
+  async startChecklist(phase: ChecklistPhaseName, position: Position) {
+    return (await post<DailyChecklist>("/daily-checklists/start", { phase, ...position })).data as DailyChecklist;
+  },
+
+  async requestUpload(id: string, imageType: ImageType) {
+    const body = { files: [{ image_type: imageType, content_type: "image/jpeg" }] };
+    const targets = (await post<UploadTarget[]>(`/daily-checklists/${id}/uploads`, body)).data;
+    if (!targets?.[0]) throw new ApiError(500, "Couldn't prepare the upload. Please try again.");
+    return targets[0];
+  },
+
+  async registerImage(id: string, imageType: ImageType, objectKey: string) {
+    const body = { image_type: imageType, object_key: objectKey };
+    return (await post<DailyChecklist>(`/daily-checklists/${id}/images`, body)).data as DailyChecklist;
+  },
+
+  async submitChecklist(id: string, position: Position) {
+    return (await post<DailyChecklist>(`/daily-checklists/${id}/submit`, position)).data as DailyChecklist;
+  },
+
+  async getChecklist(id: string) {
+    return (await request<DailyChecklist>(`/daily-checklists/${id}`)).data as DailyChecklist;
+  },
+
+  async reanalyzeChecklist(id: string) {
+    return (await post<DailyChecklist>(`/daily-checklists/${id}/reanalyze`)).data as DailyChecklist;
+  },
+
+  async updateDashboard(id: string, body: DashboardReading) {
+    const response = await request<DailyChecklist>(`/daily-checklists/${id}/dashboard`, { method: "PATCH", body: JSON.stringify(body) });
+    return response.data as DailyChecklist;
+  },
+
   // The proxy supplies the refresh token from the session cookie.
   logout: () => post<null>("/auth/logout"),
 };
+
+export type Position = { latitude: number; longitude: number };
+
+/**
+ * PUTs the photo straight to cloud storage (not through our API). Sends exactly the signed headers
+ * and no Authorization, and reports progress as 0..1.
+ */
+export function uploadToStorage(target: UploadTarget, blob: Blob, onProgress: (ratio: number) => void) {
+  return new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open(target.method || "PUT", target.upload_url);
+    for (const [name, value] of Object.entries(target.headers ?? {})) xhr.setRequestHeader(name, value);
+    xhr.upload.onprogress = (event) => event.lengthComputable && onProgress(event.loaded / event.total);
+    xhr.onload = () =>
+      xhr.status >= 200 && xhr.status < 300
+        ? resolve()
+        : reject(new ApiError(xhr.status, "The photo didn't upload. Check your connection and try again."));
+    xhr.onerror = () => reject(new ApiError(0, "You appear to be offline. Check your connection and try again."));
+    xhr.send(blob);
+  });
+}

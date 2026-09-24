@@ -18,9 +18,18 @@ const ROUTES: Record<string, { methods: string[]; auth?: boolean }> = {
   "wallet-allocations/mine/stats": { methods: ["GET"], auth: true },
   "charge-sessions/mine/stats": { methods: ["GET"], auth: true },
   "daily-checklists/today": { methods: ["GET"], auth: true },
+  "daily-checklists/start": { methods: ["POST"], auth: true },
   "pickup-requests": { methods: ["POST"], auth: true },
   "pickup-requests/mine": { methods: ["GET"], auth: true },
 };
+
+/** Routes with an id in the path. */
+const ID = "[0-9a-fA-F-]{36}";
+const PATTERNS: [RegExp, { methods: string[]; auth?: boolean }][] = [
+  [new RegExp(`^daily-checklists/${ID}$`), { methods: ["GET"], auth: true }],
+  [new RegExp(`^daily-checklists/${ID}/(uploads|images|submit|reanalyze)$`), { methods: ["POST"], auth: true }],
+  [new RegExp(`^daily-checklists/${ID}/dashboard$`), { methods: ["PATCH"], auth: true }],
+];
 
 const fail = (status: number, message: string) =>
   NextResponse.json({ status: "error", message, data: null, error: null }, { status });
@@ -28,7 +37,7 @@ const fail = (status: number, message: string) =>
 async function handle(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
   const { path } = await context.params;
   const key = path.join("/");
-  const route = ROUTES[key];
+  const route = ROUTES[key] ?? PATTERNS.find(([pattern]) => pattern.test(key))?.[1];
   if (!route) return fail(404, "Not found");
   if (!route.methods.includes(request.method)) return fail(405, "Method not allowed");
 
@@ -64,4 +73,4 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
   }
 }
 
-export { handle as GET, handle as POST };
+export { handle as GET, handle as POST, handle as PATCH };

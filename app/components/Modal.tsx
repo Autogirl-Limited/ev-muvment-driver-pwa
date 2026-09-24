@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { Spinner } from "./Ui";
 
 /**
@@ -13,6 +14,7 @@ export function Modal({
   dismissible = true,
   label,
   children,
+  panelClassName,
 }: {
   open: boolean;
   onClose: () => void;
@@ -20,17 +22,25 @@ export function Modal({
   dismissible?: boolean;
   label: string;
   children: ReactNode;
+  panelClassName?: string;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
     const dialog = ref.current;
     if (!dialog) return;
+    const previousFocus = document.activeElement;
     if (open && !dialog.open) dialog.showModal();
     if (!open && dialog.open) dialog.close();
+    return () => {
+      if (dialog.open) dialog.close();
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus({ preventScroll: true });
+    };
   }, [open]);
 
-  return (
+  if (!open || typeof document === "undefined") return null;
+
+  return createPortal(
     <dialog
       aria-label={label}
       className="modal"
@@ -43,8 +53,9 @@ export function Modal({
         if (dismissible && event.target === event.currentTarget) onClose(); // tap on the backdrop
       }}
     >
-      {open ? <div className="modal-panel">{children}</div> : null}
-    </dialog>
+      {open ? <div className={`modal-panel ${panelClassName ?? ""}`}>{children}</div> : null}
+    </dialog>,
+    document.body,
   );
 }
 

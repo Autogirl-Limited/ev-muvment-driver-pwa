@@ -1,4 +1,4 @@
-import type { ApiEnvelope, FieldErrors } from "./types";
+import type { ApiEnvelope, ChargeStats, DvaStats, FieldErrors, WalletStats } from "./types";
 
 export type { FieldErrors };
 
@@ -42,6 +42,16 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<ApiE
   return payload;
 }
 
+export type DateRange = { from?: string; to?: string };
+
+function rangeQuery({ from, to }: DateRange) {
+  const params = new URLSearchParams();
+  if (from) params.set("dateFrom", from);
+  if (to) params.set("dateTo", to);
+  const query = params.toString();
+  return query ? `?${query}` : "";
+}
+
 const post = <T>(path: string, body?: unknown) =>
   request<T>(path, { method: "POST", body: body === undefined ? undefined : JSON.stringify(body) });
 
@@ -68,6 +78,19 @@ export const api = {
   // The proxy attaches the access token from the session cookie.
   changePassword: (currentPassword: string, newPassword: string) =>
     post<null>("/auth/change-password", { current_password: currentPassword, new_password: newPassword }),
+
+  // Stats endpoints. Omit the range for all-time totals; dates are YYYY-MM-DD, inclusive.
+  async dvaStats(range: DateRange) {
+    return (await request<DvaStats>(`/dva-transactions/mine/stats${rangeQuery(range)}`)).data;
+  },
+
+  async walletStats() {
+    return (await request<WalletStats>("/wallet-allocations/mine/stats")).data;
+  },
+
+  async chargeStats(range: DateRange) {
+    return (await request<ChargeStats>(`/charge-sessions/mine/stats${rangeQuery(range)}`)).data;
+  },
 
   // The proxy supplies the refresh token from the session cookie.
   logout: () => post<null>("/auth/logout"),

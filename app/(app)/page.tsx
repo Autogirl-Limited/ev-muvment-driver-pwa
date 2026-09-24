@@ -1,8 +1,8 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { Car, MapPin, TrendingUp, User, Wallet, Zap } from "lucide-react";
-import { naira } from "../lib/format";
+import { Car, MapPin, User } from "lucide-react";
+import { StatsCarousel } from "../components/StatsCarousel";
 
 export default function HomePage() {
   const { data: session } = useSession();
@@ -30,20 +30,7 @@ export default function HomePage() {
           </span>
         </div>
 
-        <div className="wallet">
-          <div className="hero-glow" aria-hidden="true" />
-          <div className="wallet-row">
-            <span className="wallet-label"><Wallet size={16} /> Wallet balance</span>
-            <Zap size={18} fill="currentColor" />
-          </div>
-          <strong className="wallet-amount">{naira(profile.user.ev_wallet_balance)}</strong>
-          <div className="wallet-foot">
-            <TrendingUp size={16} />
-            <span>Today&apos;s inflow</span>
-            <b>{naira(profile.dva_total_amount_received)}</b>
-            {profile.dva_transaction_count ? <em>{profile.dva_transaction_count} txns</em> : null}
-          </div>
-        </div>
+        <StatsCarousel />
 
         <section className="panel">
           <h3 className="panel-title"><Car size={16} /> Your vehicle</h3>

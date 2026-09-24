@@ -14,6 +14,9 @@ const ROUTES: Record<string, { methods: string[]; auth?: boolean }> = {
   "auth/reset-password": { methods: ["POST"] },
   "auth/change-password": { methods: ["POST"], auth: true },
   "auth/logout": { methods: ["POST"], auth: true },
+  "dva-transactions/mine/stats": { methods: ["GET"], auth: true },
+  "wallet-allocations/mine/stats": { methods: ["GET"], auth: true },
+  "charge-sessions/mine/stats": { methods: ["GET"], auth: true },
 };
 
 const fail = (status: number, message: string) =>

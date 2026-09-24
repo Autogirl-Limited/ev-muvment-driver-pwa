@@ -1,26 +1,17 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { Building2, Clock, Copy, TrendingUp } from "lucide-react";
-import { toast } from "sonner";
+import { Building2, Clock, TrendingUp } from "lucide-react";
 import { naira } from "../../lib/format";
+import { paymentAccounts } from "../../lib/banks";
+import { BankAccountList } from "../../components/BankAccountList";
 
 export default function PaymentPage() {
   const { data: session } = useSession();
   const profile = session?.profile;
   if (!profile) return null;
 
-  const account = profile.virtual_account ?? profile.user.virtual_account;
-
-  async function copyAccount() {
-    if (!account?.account_number) return;
-    try {
-      await navigator.clipboard.writeText(account.account_number);
-      toast.success("Account number copied.");
-    } catch {
-      toast.error("Couldn't copy. Long-press the number to copy it.");
-    }
-  }
+  const accounts = paymentAccounts(profile);
 
   return (
     <div className="screen-enter">
@@ -37,20 +28,9 @@ export default function PaymentPage() {
         </div>
 
         <section className="panel">
-          <h3 className="panel-title"><Building2 size={16} /> Payment account</h3>
-          {account ? (
-            <>
-              <div className="account-number">
-                <strong>{account.account_number}</strong>
-                <button className="copy-button" type="button" onClick={copyAccount} aria-label="Copy account number">
-                  <Copy size={16} /> Copy
-                </button>
-              </div>
-              <dl className="details">
-                <div><dt>Account name</dt><dd>{account.account_name}</dd></div>
-                <div><dt>Bank</dt><dd>{account.bank_name}</dd></div>
-              </dl>
-            </>
+          <h3 className="panel-title"><Building2 size={16} /> Payment accounts</h3>
+          {accounts.length ? (
+            <BankAccountList accounts={accounts} />
           ) : (
             <p className="empty"><Clock size={18} /> Your bank account is being set up. It will appear here shortly.</p>
           )}

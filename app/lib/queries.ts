@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { signIn, signOut, useSession } from "next-auth/react";
-import { api, ApiError } from "./api";
+import { api, ApiError, type DateRange } from "./api";
 
 export const USERNAME_RE = /^[a-zA-Z0-9_.]{3,50}$/;
 
@@ -90,5 +90,37 @@ export function useLogout() {
       queryClient.clear();
       await signOut({ redirectTo: "/login" });
     },
+  });
+}
+
+const STATS_STALE = 30_000;
+
+export function useDvaStats(range: DateRange) {
+  const { status } = useSession();
+  return useQuery({
+    queryKey: ["dva-stats", range.from ?? null, range.to ?? null],
+    queryFn: () => api.dvaStats(range),
+    enabled: status === "authenticated",
+    staleTime: STATS_STALE,
+  });
+}
+
+export function useWalletStats() {
+  const { status } = useSession();
+  return useQuery({
+    queryKey: ["wallet-stats"],
+    queryFn: () => api.walletStats(),
+    enabled: status === "authenticated",
+    staleTime: STATS_STALE,
+  });
+}
+
+export function useChargeStats(range: DateRange) {
+  const { status } = useSession();
+  return useQuery({
+    queryKey: ["charge-stats", range.from ?? null, range.to ?? null],
+    queryFn: () => api.chargeStats(range),
+    enabled: status === "authenticated",
+    staleTime: STATS_STALE,
   });
 }

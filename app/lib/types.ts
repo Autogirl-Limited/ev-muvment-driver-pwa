@@ -56,3 +56,25 @@ export type LoginData = {
 export type DriverProfile = Omit<LoginData, "access_token" | "refresh_token" | "token_type" | "status">;
 
 export type FieldErrors = Record<string, string>;
+
+export type DvaStats = {
+  date_from: string | null;
+  date_to: string | null;
+  total_amount_received: number;
+  transaction_count: number;
+};
+
+export type WalletStats = {
+  wallet_balance: number;
+  current_rate_per_kwh: number;
+  wallet_balance_kwh: number;
+  pending_amount: number;
+  pending_count: number;
+};
+
+export type ChargeStats = {
+  date_from: string | null;
+  date_to: string | null;
+  total_amount_spent: number;
+  session_count: number;
+};

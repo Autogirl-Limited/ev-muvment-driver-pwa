@@ -1,5 +1,3 @@
-import { DriverPwaApp } from "./components/client-app";
-
-export default function Home() {
-  return <DriverPwaApp />;
+export default function Page() {
+  return <main>Hello, Next.js!</main>;
 }

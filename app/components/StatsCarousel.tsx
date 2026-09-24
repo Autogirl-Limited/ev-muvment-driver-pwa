@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useSession } from "next-auth/react";
-import { BatteryCharging, Building2, Wallet, X, Zap } from "lucide-react";
-import { kwh, lagosDate, naira } from "../lib/format";
+import Image from "next/image";
+import { BatteryCharging, Building2, CarFront, Wallet, X, Zap } from "lucide-react";
+import { kwh, lagosDate, naira, vehicleImage } from "../lib/format";
 import { useChargeStats, useDvaStats, useWalletStats } from "../lib/queries";
 import type { DriverProfile } from "../lib/types";
 import { Modal } from "./Modal";
@@ -130,6 +131,36 @@ function EnergySlide({ profile }: { profile: DriverProfile }) {
   );
 }
 
+function VehicleSlide({ profile }: { profile: DriverProfile }) {
+  const vehicle = profile.vehicle ?? profile.user.vehicle;
+  const meta = [vehicle?.vehicle_make?.name, vehicle?.vehicle_model?.name].filter(Boolean).join(" ");
+
+  return (
+    <article className="slide slide-graphite slide-vehicle">
+      <header className="slide-head">
+        <span className="slide-label"><CarFront size={15} /> Your vehicle</span>
+        {vehicle ? <span className="slide-plate">{vehicle.plate_number}</span> : null}
+      </header>
+
+      {vehicle ? (
+        <>
+          <div className="slide-car">
+            <Image alt="" fill sizes="(max-width: 480px) 80vw, 360px" src={vehicleImage(vehicle.vehicle_type?.name)} />
+          </div>
+          <div className="slide-vehicle-info">
+            <strong>{vehicle.name}</strong>
+            <small>{[meta, vehicle.location_state].filter(Boolean).join(" · ")}</small>
+          </div>
+        </>
+      ) : (
+        <div className="slide-metric">
+          <p className="slide-sub">No vehicle assigned yet. We&apos;ll notify you once one is ready.</p>
+        </div>
+      )}
+    </article>
+  );
+}
+
 function ChargeSlide({ period, onPeriod }: { period: DateFilter; onPeriod: (p: DateFilter) => void }) {
   const range = resolveDateFilter(period, lagosDate());
   const stats = useChargeStats(range);
@@ -182,6 +213,7 @@ export function StatsCarousel() {
 
   const slides: { key: string; label: string; node: ReactNode }[] = [
     { key: "payments", label: "Payments received", node: <PaymentsSlide profile={profile} period={period} onPeriod={setPeriod} /> },
+    { key: "vehicle", label: "Your vehicle", node: <VehicleSlide profile={profile} /> },
     { key: "energy", label: "Energy wallet", node: <EnergySlide profile={profile} /> },
     { key: "charging", label: "Charging spent", node: <ChargeSlide period={period} onPeriod={setPeriod} /> },
   ];

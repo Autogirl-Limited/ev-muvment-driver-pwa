@@ -21,6 +21,7 @@ export type Vehicle = {
   name: string;
   plate_number: string;
   location_state: string;
+  vehicle_type?: { name: string } | null;
   vehicle_make?: { name: string };
   vehicle_model?: { name: string };
   pick_up_window?: { start_time: string; end_time: string } | null;

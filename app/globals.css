@@ -2531,3 +2531,56 @@ dialog.modal::backdrop {
     font-size: 1.9rem;
   }
 }
+
+/* ---- Vehicle slide ---- */
+.slide-graphite {
+  background: linear-gradient(115deg, #1c6b6e, #123f4f);
+}
+
+.slide-vehicle {
+  gap: 0.5rem;
+}
+
+.slide-plate {
+  padding: 0.3rem 0.65rem;
+  border: 1.5px solid rgba(255, 255, 255, 0.55);
+  border-radius: 0.5rem;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 0.78rem;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.slide-car {
+  position: relative;
+  flex: 1;
+  min-height: 5.5rem;
+}
+
+.slide-car img {
+  object-fit: contain;
+  filter: drop-shadow(0 10px 12px rgba(0, 0, 0, 0.35));
+}
+
+.slide-vehicle-info {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.slide-vehicle-info strong {
+  overflow: hidden;
+  font-size: 1.2rem;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.slide-vehicle-info small {
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.8rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -104,6 +104,7 @@ body {
 
 h1,
 h2,
+h3,
 p,
 dl,
 dd {
@@ -868,9 +869,11 @@ a:focus-visible {
   font-weight: 500;
 }
 
-.greeting h1 {
+.greeting h2 {
   overflow: hidden;
   font-size: 1.4rem;
+  font-weight: 750;
+  letter-spacing: -0.03em;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1031,7 +1034,7 @@ a:focus-visible {
   background: var(--surface);
 }
 
-.panel h2 {
+.panel-title {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -1291,5 +1294,374 @@ a:focus-visible {
   .desktop-block p {
     color: var(--muted);
     line-height: 1.6;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Signed-in app frame: header + bottom tab bar                        */
+/* ------------------------------------------------------------------ */
+.phone-app:has(.app-frame) {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+/* Same background as the screen in both themes, so header, content and nav read as one surface. */
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: calc(3.5rem + env(safe-area-inset-top));
+  margin: 0 -1.25rem;
+  padding: env(safe-area-inset-top) 0.75rem env(safe-area-inset-top) 1.25rem;
+  border-bottom: 1px solid transparent;
+  background: var(--background);
+  transition: border-color 200ms;
+}
+
+.app-header.scrolled {
+  border-bottom-color: var(--line);
+}
+
+.app-header-left,
+.app-header-actions {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.app-header-left {
+  margin-left: -0.5rem;
+}
+
+.app-title {
+  font-size: 1.25rem;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+
+.brand-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-left: 0.5rem;
+  font-size: 1.1rem;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  text-decoration: none;
+}
+
+.brand-chip {
+  display: grid;
+  place-items: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 0.65rem;
+  background: linear-gradient(145deg, var(--hero-from), var(--hero-to));
+  color: #fff;
+}
+
+.app-title:only-child {
+  margin-left: 0.5rem;
+}
+
+.icon-button.plain {
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: none;
+  text-decoration: none;
+  transition: background-color 150ms, transform 150ms var(--ease);
+}
+
+.icon-button.plain:active {
+  background: var(--surface-2);
+  transform: scale(0.9);
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + 0.2rem);
+  right: 0.25rem;
+  z-index: 40;
+  min-width: 13.5rem;
+  padding: 0.35rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.35);
+  transform-origin: top right;
+  animation: menu-in 200ms var(--ease) both;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 2.9rem;
+  padding: 0 0.75rem;
+  border: 0;
+  border-radius: 0.7rem;
+  background: transparent;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+  text-align: left;
+}
+
+.menu-item:active,
+.menu-item:hover {
+  background: var(--surface-2);
+}
+
+.menu-item.danger {
+  color: var(--danger);
+}
+
+.menu-sep {
+  height: 1px;
+  margin: 0.3rem 0.5rem;
+  background: var(--line);
+}
+
+.only-dark {
+  display: none;
+}
+
+[data-theme="dark"] .only-light {
+  display: none;
+}
+
+[data-theme="dark"] .only-dark {
+  display: inline-block;
+}
+
+.app-content {
+  padding-top: 0.5rem;
+  padding-bottom: calc(5.25rem + env(safe-area-inset-bottom));
+}
+
+/* ---- Bottom tab bar (Twitter / WhatsApp style) ---- */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  width: 100%;
+  max-width: 30rem;
+  padding: 0.35rem 0.5rem calc(0.35rem + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+  background: var(--background);
+  transform: translateX(-50%);
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.25rem 0 0.15rem;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 200ms;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+.nav-pill {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 3.75rem;
+  height: 2rem;
+  border-radius: 999px;
+  transition: transform 150ms var(--ease);
+}
+
+.nav-pill::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--primary-soft);
+  opacity: 0;
+  transform: scale(0.5, 0.8);
+  transition: transform 350ms var(--ease), opacity 200ms;
+}
+
+.nav-pill svg {
+  position: relative;
+}
+
+.nav-item:active .nav-pill {
+  transform: scale(0.88);
+}
+
+.nav-item.active {
+  color: var(--primary);
+}
+
+.nav-item.active .nav-pill::before {
+  opacity: 1;
+  transform: none;
+}
+
+/* ---- Pages inside the frame ---- */
+.stat-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 0.75rem;
+}
+
+.stat {
+  display: grid;
+  gap: 0.4rem;
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.stat span {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.stat strong {
+  font-size: 1.35rem;
+  font-weight: 750;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.empty-state {
+  display: grid;
+  justify-items: center;
+  gap: 0.75rem;
+  padding: 4rem 1.5rem;
+  text-align: center;
+}
+
+.empty-icon {
+  display: grid;
+  place-items: center;
+  width: 4.5rem;
+  height: 4.5rem;
+  margin-bottom: 0.5rem;
+  border-radius: 1.5rem;
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.empty-state h2 {
+  font-size: 1.25rem;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+
+.empty-state p {
+  max-width: 30ch;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.profile-head {
+  display: grid;
+  justify-items: center;
+  gap: 0.6rem;
+  padding: 0.75rem 0 0.25rem;
+}
+
+.profile-head h2 {
+  font-size: 1.4rem;
+  font-weight: 750;
+  letter-spacing: -0.03em;
+}
+
+.avatar.large {
+  width: 5rem;
+  height: 5rem;
+  border-radius: 1.6rem;
+  font-size: 1.5rem;
+}
+
+.list-panel {
+  gap: 0;
+  padding: 0.35rem 1.1rem;
+}
+
+.list-row {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.85rem 0;
+  min-width: 0;
+}
+
+.list-row + .list-row {
+  border-top: 1px solid var(--line);
+}
+
+.list-row > div {
+  min-width: 0;
+}
+
+.list-row small,
+.list-row strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.list-row small {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.list-row strong {
+  margin-top: 0.1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.list-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.7rem;
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.ghost-button.danger {
+  color: var(--danger);
+}
+
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(-6px);
   }
 }

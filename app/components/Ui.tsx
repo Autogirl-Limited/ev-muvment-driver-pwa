@@ -57,3 +57,13 @@ export function StrengthMeter({ value }: { value: string }) {
     </div>
   );
 }
+
+export function EmptyState({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
+  return (
+    <div className="empty-state">
+      <span className="empty-icon">{icon}</span>
+      <h2>{title}</h2>
+      <p>{children}</p>
+    </div>
+  );
+}

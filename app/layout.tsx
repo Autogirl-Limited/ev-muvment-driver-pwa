@@ -26,10 +26,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f4f7fd" },
-    { media: "(prefers-color-scheme: dark)", color: "#05070d" },
-  ],
+  themeColor: "#f6f8fd",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -38,7 +35,7 @@ export const viewport: Viewport = {
 };
 
 // Runs before first paint so the saved (or system) theme never flashes.
-const themeScript = `(function(){try{var t=localStorage.getItem("ev_muvment_theme");if(t!=="light"&&t!=="dark"){t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.dataset.theme=t}catch(e){}})()`;
+const themeScript = `(function(){try{var t=localStorage.getItem("ev_muvment_theme");if(t!=="light"&&t!=="dark"){t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.dataset.theme=t;var m=document.querySelector('meta[name="theme-color"]');if(m)m.content=t==="dark"?"#04060b":"#f6f8fd"}catch(e){}})()`;
 
 export default async function RootLayout({
   children,

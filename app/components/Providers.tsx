@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { SessionProvider } from "next-auth/react";
 import type { Session } from "next-auth";
 import { Toaster } from "sonner";
+import { syncThemeColor } from "../lib/theme";
 
 function subscribeToTheme(callback: () => void) {
   const observer = new MutationObserver(callback);
@@ -34,6 +35,8 @@ export function Providers({ session, children }: { session: Session | null; chil
   const [queryClient] = useState(
     () => new QueryClient({ defaultOptions: { queries: { refetchOnWindowFocus: false } } }),
   );
+
+  useEffect(syncThemeColor, []);
 
   return (
     <SessionProvider session={session} refetchOnWindowFocus={false}>

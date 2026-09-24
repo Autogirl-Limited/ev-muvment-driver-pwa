@@ -5,6 +5,14 @@ import type { CSSProperties, InputHTMLAttributes, ReactNode } from "react";
 import { Check, ChevronDown, Eye, EyeOff, TriangleAlert } from "lucide-react";
 import { countries, flagUrl, type Country } from "../lib/countries";
 
+// Inputs never offer or save browser history/autofill. Password fields use "new-password",
+// the value browsers respect for suppressing saved-login suggestions.
+const NO_MEMORY = {
+  "data-lpignore": "true",
+  "data-1p-ignore": true,
+  "data-form-type": "other",
+} as const;
+
 function scrollIntoViewSoon(element: HTMLElement) {
   setTimeout(() => {
     element.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -22,7 +30,7 @@ function FieldMessage({ error, hint, hintTone = "default" }: { error?: string; h
   return hint ? <span className={`field-hint tone-${hintTone}`}>{hint}</span> : null;
 }
 
-type TextFieldProps = InputHTMLAttributes<HTMLInputElement> & {
+type TextFieldProps = Omit<InputHTMLAttributes<HTMLInputElement>, "autoComplete"> & {
   label: string;
   error?: string;
   hint?: ReactNode;
@@ -59,6 +67,8 @@ export function TextField({
         {icon ? <span className="field-icon">{icon}</span> : null}
         <input
           {...props}
+          {...NO_MEMORY}
+          autoComplete={isPassword ? "new-password" : "off"}
           id={id}
           type={isPassword && revealed ? "text" : type}
           aria-invalid={error ? true : undefined}
@@ -141,7 +151,8 @@ export function PhoneField({
           <ChevronDown className={open ? "flip" : ""} size={16} />
         </button>
         <input
-          autoComplete="tel-national"
+          {...NO_MEMORY}
+          autoComplete="off"
           id={id}
           inputMode="tel"
           placeholder={country.example}

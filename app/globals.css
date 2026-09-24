@@ -232,58 +232,6 @@ a:focus-visible {
   opacity: 1;
 }
 
-/* ---- Toast ---- */
-.toast {
-  position: sticky;
-  top: max(0.5rem, env(safe-area-inset-top));
-  z-index: 40;
-  display: flex;
-  align-items: center;
-  gap: 0.7rem;
-  margin: 0 0 0.9rem;
-  padding: 0.7rem 0.6rem 0.7rem 0.9rem;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-md);
-  background: var(--surface);
-  box-shadow: var(--shadow-md);
-  color: var(--primary);
-  animation: toast-in 420ms var(--ease) both;
-}
-
-.toast > svg {
-  flex: none;
-}
-
-.toast p {
-  flex: 1;
-  min-width: 0;
-  color: var(--foreground);
-  font-size: 0.875rem;
-  font-weight: 500;
-  line-height: 1.4;
-}
-
-.toast button {
-  display: grid;
-  flex: none;
-  place-items: center;
-  width: 1.9rem;
-  height: 1.9rem;
-  border: 0;
-  border-radius: 0.6rem;
-  background: transparent;
-  color: var(--muted);
-}
-
-.toast-success {
-  color: var(--success);
-}
-
-.toast-error {
-  border-color: color-mix(in srgb, var(--danger) 40%, var(--line));
-  color: var(--danger);
-}
-
 /* ------------------------------------------------------------------ */
 /* Screens                                                             */
 /* ------------------------------------------------------------------ */
@@ -1223,13 +1171,6 @@ a:focus-visible {
   from {
     opacity: 0;
     transform: translateY(12px);
-  }
-}
-
-@keyframes toast-in {
-  from {
-    opacity: 0;
-    transform: translateY(-12px) scale(0.97);
   }
 }
 

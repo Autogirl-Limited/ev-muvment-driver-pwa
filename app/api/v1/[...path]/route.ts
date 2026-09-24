@@ -1,0 +1,61 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getToken } from "next-auth/jwt";
+import { BACKEND_URL } from "../../../lib/server";
+
+/**
+ * Proxy for every backend call the app makes. The browser only ever talks to /api/v1/*;
+ * the backend URL and the user's tokens stay on the server.
+ */
+const ROUTES: Record<string, { methods: string[]; auth?: boolean }> = {
+  "users/suggest-username": { methods: ["GET"] },
+  "users/check-username": { methods: ["GET"] },
+  "driver-applications": { methods: ["POST"] },
+  "auth/forgot-password": { methods: ["POST"] },
+  "auth/reset-password": { methods: ["POST"] },
+  "auth/change-password": { methods: ["POST"], auth: true },
+  "auth/logout": { methods: ["POST"], auth: true },
+};
+
+const fail = (status: number, message: string) =>
+  NextResponse.json({ status: "error", message, data: null, error: null }, { status });
+
+async function handle(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
+  const { path } = await context.params;
+  const key = path.join("/");
+  const route = ROUTES[key];
+  if (!route) return fail(404, "Not found");
+  if (!route.methods.includes(request.method)) return fail(405, "Method not allowed");
+
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  let body = request.method === "GET" ? undefined : await request.text();
+
+  if (route.auth) {
+    const secure = (request.headers.get("x-forwarded-proto") ?? request.nextUrl.protocol.replace(":", "")) === "https";
+    const token = await getToken({
+      req: request,
+      secret: process.env.AUTH_SECRET,
+      secureCookie: secure,
+      salt: `${secure ? "__Secure-" : ""}authjs.session-token`,
+    });
+    if (!token?.accessToken) return fail(401, "Your session has expired. Please sign in again.");
+    headers.Authorization = `Bearer ${token.accessToken}`;
+    if (key === "auth/logout") body = JSON.stringify({ refresh_token: token.refreshToken ?? "" });
+  }
+
+  try {
+    const response = await fetch(`${BACKEND_URL}/${key}${request.nextUrl.search}`, {
+      method: request.method,
+      headers,
+      body,
+      cache: "no-store",
+    });
+    return new NextResponse(await response.text(), {
+      status: response.status,
+      headers: { "Content-Type": response.headers.get("content-type") ?? "application/json" },
+    });
+  } catch {
+    return fail(502, "Unable to reach the server. Please try again.");
+  }
+}
+
+export { handle as GET, handle as POST };

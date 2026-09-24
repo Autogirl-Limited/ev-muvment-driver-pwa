@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { Zap } from "lucide-react";
 import type { ReactNode } from "react";
+import { auth } from "../auth";
+import { Providers } from "./components/Providers";
 import "./globals.css";
 
 const inter = Inter({
@@ -38,11 +40,13 @@ export const viewport: Viewport = {
 // Runs before first paint so the saved (or system) theme never flashes.
 const themeScript = `(function(){try{var t=localStorage.getItem("ev_muvment_theme");if(t!=="light"&&t!=="dark"){t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.dataset.theme=t}catch(e){}})()`;
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: ReactNode;
 }>) {
+  const session = await auth();
+
   return (
     <html lang="en" data-theme="light" className={inter.variable} suppressHydrationWarning>
       <head>
@@ -57,7 +61,9 @@ export default function RootLayout({
             <h1>Mobile only</h1>
             <p>EV Muvment Driver is designed as a phone-first PWA. Please open it on an Android phone or iPhone.</p>
           </section>
-          <div className="phone-app">{children}</div>
+          <div className="phone-app">
+            <Providers session={session}>{children}</Providers>
+          </div>
         </main>
       </body>
     </html>

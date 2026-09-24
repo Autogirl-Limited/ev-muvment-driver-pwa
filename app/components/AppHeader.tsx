@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowLeft, Bell, EllipsisVertical, LogOut, Moon, Sun, UserRound, Zap } from "lucide-react";
+import { ArrowLeft, Bell, EllipsisVertical, LogOut, Moon, Sun, UserRound } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { LogoutDialog } from "./LogoutDialog";
 import { applyTheme, currentTheme } from "../lib/theme";
 
@@ -11,16 +12,19 @@ const TITLES: Record<string, string> = {
   "/payment": "Payment",
   "/charge": "Charge",
   "/checklist": "Checklist",
+  "/checklist/pick-up": "Pick-up checklist",
+  "/checklist/drop-off": "Drop-off checklist",
   "/profile": "Profile",
   "/notifications": "Notifications",
 };
 
 /** Pages reached from the header rather than the tab bar get a back arrow. */
-const SUB_PAGES = new Set(["/profile", "/notifications"]);
+const SUB_PAGES = new Set(["/profile", "/notifications", "/checklist/pick-up", "/checklist/drop-off"]);
 
 export function AppHeader() {
   const pathname = usePathname();
   const router = useRouter();
+  const firstName = useSession().data?.profile?.user.first_name;
   const [confirmingLogout, setConfirmingLogout] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   // The menu is tied to the route it was opened on, so navigating closes it automatically.
@@ -63,11 +67,8 @@ export function AppHeader() {
         {title ? (
           <h1 className="app-title">{title}</h1>
         ) : (
-          <Link className="brand-lockup" href="/" aria-label="EV Muvment home">
-            <span className="brand-chip">
-              <Zap size={17} fill="currentColor" />
-            </span>
-            <span>EV Muvment</span>
+          <Link className="hello" href="/" aria-label="Home">
+            Hi, <strong>{firstName ?? "there"}</strong>
           </Link>
         )}
       </div>

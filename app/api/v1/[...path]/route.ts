@@ -17,6 +17,9 @@ const ROUTES: Record<string, { methods: string[]; auth?: boolean }> = {
   "dva-transactions/mine/stats": { methods: ["GET"], auth: true },
   "wallet-allocations/mine/stats": { methods: ["GET"], auth: true },
   "charge-sessions/mine/stats": { methods: ["GET"], auth: true },
+  "daily-checklists/today": { methods: ["GET"], auth: true },
+  "pickup-requests": { methods: ["POST"], auth: true },
+  "pickup-requests/mine": { methods: ["GET"], auth: true },
 };
 
 const fail = (status: number, message: string) =>

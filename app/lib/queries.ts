@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { api, ApiError, type DateRange } from "./api";
+import type { PickupRequestInput } from "./types";
 
 export const USERNAME_RE = /^[a-zA-Z0-9_.]{3,50}$/;
 
@@ -122,5 +123,41 @@ export function useChargeStats(range: DateRange) {
     queryFn: () => api.chargeStats(range),
     enabled: status === "authenticated",
     staleTime: STATS_STALE,
+  });
+}
+
+const TODAY_REFRESH = 60_000;
+
+/** Today's pick-up / drop-off overview. Polled gently so approvals and window changes show up. */
+export function useTodayChecklists() {
+  const { status } = useSession();
+  return useQuery({
+    queryKey: ["daily-checklists-today"],
+    // receivedAt lets countdowns follow the server clock instead of the phone's.
+    queryFn: async () => ({ data: await api.todayChecklists(), receivedAt: Date.now() }),
+    enabled: status === "authenticated",
+    staleTime: 15_000,
+    refetchInterval: TODAY_REFRESH,
+    refetchOnWindowFocus: true,
+  });
+}
+
+export function useMyPickupRequests() {
+  const { status } = useSession();
+  return useQuery({
+    queryKey: ["pickup-requests-mine"],
+    queryFn: () => api.myPickupRequests(),
+    enabled: status === "authenticated",
+    staleTime: 15_000,
+    refetchInterval: TODAY_REFRESH,
+    refetchOnWindowFocus: true,
+  });
+}
+
+export function useCreatePickupRequest() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: PickupRequestInput) => api.createPickupRequest(body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["pickup-requests-mine"] }),
   });
 }

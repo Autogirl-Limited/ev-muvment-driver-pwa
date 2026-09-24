@@ -78,3 +78,51 @@ export type ChargeStats = {
   total_amount_spent: number;
   session_count: number;
 };
+
+export type ChecklistPhaseName = "PICK_UP" | "DROP_OFF";
+export type ChecklistWindow = { start_time: string; end_time: string };
+
+export type DailyChecklist = {
+  id: string;
+  phase: ChecklistPhaseName;
+  status: "IN_PROGRESS" | "SUBMITTED";
+  started_at: string | null;
+  submitted_at: string | null;
+  missing_images: string[];
+};
+
+export type ChecklistPhase = {
+  phase: ChecklistPhaseName;
+  state: "UPCOMING" | "OPEN" | "CLOSED";
+  window: ChecklistWindow;
+  location: { address: string | null; latitude: number; longitude: number; radius_meters: number } | null;
+  can_start: boolean;
+  checklist: DailyChecklist | null;
+};
+
+export type TodayChecklists = {
+  checklist_date: string;
+  server_time: string;
+  vehicle: { id: string; name: string; plate_number: string } | null;
+  required_images: string[];
+  phases: ChecklistPhase[];
+};
+
+export type PickupRequest = {
+  id: string;
+  requested_date: string;
+  requested_start_time: string;
+  requested_end_time: string;
+  reason: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  review_notes: string | null;
+  created_at: string;
+};
+
+export type PickupRequestInput = {
+  requested_start_time: string;
+  requested_end_time: string;
+  reason: string;
+};
+
+export type Paginated<T> = { items: T[] };

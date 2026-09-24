@@ -1,4 +1,14 @@
-import type { ApiEnvelope, ChargeStats, DvaStats, FieldErrors, WalletStats } from "./types";
+import type {
+  ApiEnvelope,
+  ChargeStats,
+  DvaStats,
+  FieldErrors,
+  Paginated,
+  PickupRequest,
+  PickupRequestInput,
+  TodayChecklists,
+  WalletStats,
+} from "./types";
 
 export type { FieldErrors };
 
@@ -91,6 +101,17 @@ export const api = {
   async chargeStats(range: DateRange) {
     return (await request<ChargeStats>(`/charge-sessions/mine/stats${rangeQuery(range)}`)).data;
   },
+
+  async todayChecklists() {
+    return (await request<TodayChecklists>("/daily-checklists/today")).data;
+  },
+
+  async myPickupRequests() {
+    const params = new URLSearchParams({ page_size: "10" });
+    return (await request<Paginated<PickupRequest>>(`/pickup-requests/mine?${params}`)).data?.items ?? [];
+  },
+
+  createPickupRequest: (body: PickupRequestInput) => post<PickupRequest>("/pickup-requests", body),
 
   // The proxy supplies the refresh token from the session cookie.
   logout: () => post<null>("/auth/logout"),

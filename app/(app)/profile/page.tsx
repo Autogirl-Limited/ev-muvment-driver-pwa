@@ -1,12 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import { useSession } from "next-auth/react";
 import { AtSign, LogOut, Mail, Phone, User } from "lucide-react";
-import { useLogout } from "../../lib/queries";
+import { LogoutDialog } from "../../components/LogoutDialog";
 
 export default function ProfilePage() {
   const { data: session } = useSession();
-  const logout = useLogout();
+  const [confirmingLogout, setConfirmingLogout] = useState(false);
   const user = session?.profile?.user;
   if (!user) return null;
 
@@ -40,9 +41,10 @@ export default function ProfilePage() {
           ))}
         </section>
 
-        <button className="ghost-button danger" disabled={logout.isPending} type="button" onClick={() => logout.mutate()}>
-          <LogOut size={18} /> {logout.isPending ? "Signing out…" : "Log out"}
+        <button className="ghost-button danger" type="button" onClick={() => setConfirmingLogout(true)}>
+          <LogOut size={18} /> Log out
         </button>
+        <LogoutDialog open={confirmingLogout} onClose={() => setConfirmingLogout(false)} />
       </section>
     </div>
   );

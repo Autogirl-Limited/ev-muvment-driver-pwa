@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ArrowLeft, Bell, EllipsisVertical, LogOut, Moon, Sun, UserRound, Zap } from "lucide-react";
-import { useLogout } from "../lib/queries";
+import { LogoutDialog } from "./LogoutDialog";
 import { applyTheme, currentTheme } from "../lib/theme";
 
 const TITLES: Record<string, string> = {
@@ -21,7 +21,7 @@ const SUB_PAGES = new Set(["/profile", "/notifications"]);
 export function AppHeader() {
   const pathname = usePathname();
   const router = useRouter();
-  const logout = useLogout();
+  const [confirmingLogout, setConfirmingLogout] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   // The menu is tied to the route it was opened on, so navigating closes it automatically.
   const [openOn, setOpenOn] = useState<string | null>(null);
@@ -107,12 +107,22 @@ export function AppHeader() {
               <span className="only-dark">Light mode</span>
             </button>
             <div className="menu-sep" />
-            <button className="menu-item danger" disabled={logout.isPending} role="menuitem" type="button" onClick={() => logout.mutate()}>
-              <LogOut size={19} /> {logout.isPending ? "Signing out…" : "Log out"}
+            <button
+              className="menu-item danger"
+              role="menuitem"
+              type="button"
+              onClick={() => {
+                setOpenOn(null);
+                setConfirmingLogout(true);
+              }}
+            >
+              <LogOut size={19} /> Log out
             </button>
           </div>
         ) : null}
       </div>
+
+      <LogoutDialog open={confirmingLogout} onClose={() => setConfirmingLogout(false)} />
     </header>
   );
 }

@@ -5,16 +5,18 @@ export const THEME_KEY = "ev_muvment_theme";
 // Must match --background in globals.css so the device status/navigation bars blend with the app.
 export const THEME_COLORS: Record<Theme, string> = { light: "#f6f8fd", dark: "#04060b" };
 
-/** Points the browser's theme-color at the current theme, without saving anything. */
+/** Points every theme-color tag at the current theme, without saving anything. */
 export function syncThemeColor() {
-  const theme = currentTheme();
-  let meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
-  if (!meta) {
-    meta = document.createElement("meta");
-    meta.name = "theme-color";
-    document.head.appendChild(meta);
+  const color = THEME_COLORS[currentTheme()];
+  const tags = document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]');
+  if (tags.length) {
+    tags.forEach((tag) => (tag.content = color));
+    return;
   }
-  meta.content = THEME_COLORS[theme];
+  const tag = document.createElement("meta");
+  tag.name = "theme-color";
+  tag.content = color;
+  document.head.appendChild(tag);
 }
 
 export function applyTheme(theme: Theme) {

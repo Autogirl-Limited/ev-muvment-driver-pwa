@@ -17,7 +17,9 @@ export const metadata: Metadata = {
   description: "Driver application and authentication PWA for EV Muvment.",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
+    // "default" keeps the iOS status bar opaque with text that follows light/dark. "black-translucent"
+    // would draw white text over our light background.
+    statusBarStyle: "default",
     title: "EV Driver",
   },
   formatDetection: {
@@ -26,7 +28,8 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#f6f8fd",
+  // No `themeColor` here on purpose: Next re-inserts its own tags on navigation. Instead the theme
+  // script below owns a single <meta name="theme-color"> that always matches the app theme.
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -35,7 +38,7 @@ export const viewport: Viewport = {
 };
 
 // Runs before first paint so the saved (or system) theme never flashes.
-const themeScript = `(function(){try{var t=localStorage.getItem("ev_muvment_theme");if(t!=="light"&&t!=="dark"){t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.dataset.theme=t;var m=document.querySelector('meta[name="theme-color"]');if(m)m.content=t==="dark"?"#04060b":"#f6f8fd"}catch(e){}})()`;
+const themeScript = `(function(){try{var t=localStorage.getItem("ev_muvment_theme");if(t!=="light"&&t!=="dark"){t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.dataset.theme=t;var m=document.querySelector('meta[name="theme-color"]');if(!m){m=document.createElement("meta");m.name="theme-color";document.head.appendChild(m)}m.content=t==="dark"?"#04060b":"#f6f8fd"}catch(e){}})()`;
 
 export default async function RootLayout({
   children,

@@ -201,3 +201,34 @@ export type DvaTransaction = {
   paid_at: string;
   created_at: string;
 };
+
+export type ChargerInfo = {
+  charger_id: string;
+  location_name: string | null;
+  connector_type: string | null;
+  power_kw: number | null;
+  connectors: { connector_id: string; available: boolean }[];
+};
+
+export type ChargeQuote = {
+  charger_id: string;
+  connector_id: string;
+  quoted_amount: number;
+  currency: string;
+  sub_wallet_balance: number;
+  soc_percent: number | null;
+  vehicle_model: string | null;
+};
+
+export type ChargeStarted = { session_id: string; debited: number; remaining_balance: number };
+
+export type ChargeSession = {
+  id: string;
+  created_at: string;
+  lotgrids_session_id: string | null;
+  charger_id: string;
+  connector_id: string;
+  amount: number;
+  remaining_balance: number | null;
+  energy_kwh: number | null;
+};

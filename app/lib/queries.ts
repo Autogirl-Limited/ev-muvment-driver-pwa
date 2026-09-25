@@ -345,3 +345,35 @@ export function useDvaTransactions(page: number, range: DateRange) {
     placeholderData: keepPreviousData, // the old page stays put while the next one loads
   });
 }
+
+/* ------------------------------------------------------------------ */
+/* Charging                                                            */
+/* ------------------------------------------------------------------ */
+export const CHARGES_PAGE_SIZE = 6;
+
+export function useChargeSessions(page: number) {
+  const { status } = useSession();
+  return useQuery({
+    queryKey: ["charge-sessions", page],
+    queryFn: () => api.chargeSessions(page, CHARGES_PAGE_SIZE),
+    enabled: status === "authenticated",
+    staleTime: STATS_STALE,
+    placeholderData: keepPreviousData,
+  });
+}
+
+export const useChargerConnectors = () => useMutation({ mutationFn: (chargerId: string) => api.chargerConnectors(chargerId) });
+
+export const useChargeQuote = () =>
+  useMutation({ mutationFn: (v: { chargerId: string; connectorId: string }) => api.quoteCharge(v.chargerId, v.connectorId) });
+
+export function useStartCharge() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { chargerId: string; connectorId: string; amount: number }) => api.startCharge(v.chargerId, v.connectorId, v.amount),
+    onSettled: () => {
+      // The wallet was debited and a history row was written: refresh everything that shows either.
+      for (const key of ["wallet-stats", "charge-stats", "charge-sessions"]) void queryClient.invalidateQueries({ queryKey: [key] });
+    },
+  });
+}

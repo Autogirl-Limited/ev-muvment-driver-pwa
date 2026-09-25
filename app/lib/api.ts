@@ -1,6 +1,10 @@
 import type {
   ApiEnvelope,
   AppNotification,
+  ChargeQuote,
+  ChargerInfo,
+  ChargeSession,
+  ChargeStarted,
   ChargeStats,
   ChecklistPhaseName,
   DailyChecklist,
@@ -127,6 +131,25 @@ export const api = {
   },
 
   createPickupRequest: (body: PickupRequestInput) => post<PickupRequest>("/pickup-requests", body),
+
+  // ---- Charging ----
+  async chargerConnectors(chargerId: string) {
+    return (await post<ChargerInfo>("/charging-sessions/connectors", { charger_id: chargerId })).data as ChargerInfo;
+  },
+
+  async quoteCharge(chargerId: string, connectorId: string) {
+    return (await post<ChargeQuote>("/charging-sessions/quote", { charger_id: chargerId, connector_id: connectorId })).data as ChargeQuote;
+  },
+
+  async startCharge(chargerId: string, connectorId: string, amount: number) {
+    const body = { charger_id: chargerId, connector_id: connectorId, amount };
+    return (await post<ChargeStarted>("/charging-sessions/start", body)).data as ChargeStarted;
+  },
+
+  async chargeSessions(page: number, pageSize: number) {
+    const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
+    return (await request<Page<ChargeSession>>(`/charge-sessions/mine?${params}`)).data as Page<ChargeSession>;
+  },
 
   // ---- Notifications ----
   async notifications(page: number, unreadOnly: boolean) {

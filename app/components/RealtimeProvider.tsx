@@ -208,7 +208,8 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
         backoff = 1000;
         void connect();
       } else {
-        invalidate(queryClient, "daily-checklists-today", "pickup-requests-mine", "notifications-unread");
+        // Coming back to the app: pick up anything that changed, including automatic charge refunds.
+        invalidate(queryClient, "daily-checklists-today", "pickup-requests-mine", "notifications-unread", "wallet-stats");
       }
     };
 

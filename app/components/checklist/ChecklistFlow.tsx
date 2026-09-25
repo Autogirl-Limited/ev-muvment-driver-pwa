@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, Camera, Check, CircleAlert, Clock, Lock, MapPin, Pencil, RefreshCw, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ArrowRight, Camera, Check, CircleAlert, Clock, Image as ImageIcon, Lock, MapPin, Pencil, RefreshCw, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { clock, windowLabel } from "../../lib/journey";
 import { usePhotoUploads, type PhotoState } from "../../lib/photos";
@@ -170,6 +170,7 @@ function PhotoStep({
   onNext: () => void;
 }) {
   const input = useRef<HTMLInputElement>(null);
+  const gallery = useRef<HTMLInputElement>(null);
   const shot = SHOTS[type];
   const src = imageUrl(checklist, type, photo);
   const busy = photo?.status === "processing" || photo?.status === "uploading";
@@ -224,19 +225,25 @@ function PhotoStep({
         <p className="cl-tip">{shot.tip}</p>
       )}
 
-      <input
-        accept="image/*"
-        capture="environment"
-        className="cl-file"
-        ref={input}
-        tabIndex={-1}
-        type="file"
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          event.target.value = "";
-          if (file) onCapture(file);
-        }}
-      />
+      {[
+        { ref: input, camera: true },
+        { ref: gallery, camera: false },
+      ].map(({ ref, camera }) => (
+        <input
+          accept="image/*"
+          capture={camera ? "environment" : undefined}
+          className="cl-file"
+          key={String(camera)}
+          ref={ref}
+          tabIndex={-1}
+          type="file"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            event.target.value = "";
+            if (file) onCapture(file);
+          }}
+        />
+      ))}
 
       <div className="cl-actions">
         {failed && photo?.preview ? (
@@ -264,6 +271,9 @@ function PhotoStep({
               <Camera size={18} /> Retake
             </button>
           ) : null}
+          <button className="ghost-button" disabled={busy} type="button" onClick={() => gallery.current?.click()}>
+            <ImageIcon size={18} /> From gallery
+          </button>
         </div>
       </div>
     </div>

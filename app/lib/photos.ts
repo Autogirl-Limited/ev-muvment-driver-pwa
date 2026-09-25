@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { api, ApiError, uploadToStorage } from "./api";
+import { ApiError, uploadChecklistPhoto } from "./api";
 import { compressImage } from "./image";
 import { putChecklist } from "./queries";
 import type { ImageType } from "./types";
@@ -38,9 +38,7 @@ export function usePhotoUploads(checklistId: string | undefined) {
       if (!checklistId) return;
       patch(type, { status: "uploading", progress: 0, error: undefined });
       try {
-        const target = await api.requestUpload(checklistId, type);
-        await uploadToStorage(target, blob, (progress) => patch(type, { progress }));
-        const checklist = await api.registerImage(checklistId, type, target.object_key);
+        const checklist = await uploadChecklistPhoto(checklistId, type, blob, (progress) => patch(type, { progress }));
         putChecklist(queryClient, checklist);
         patch(type, { status: "idle", progress: 1 });
       } catch (error) {

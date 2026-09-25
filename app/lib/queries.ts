@@ -171,8 +171,10 @@ type TodayCache = { data: TodayChecklists | null; receivedAt: number };
 
 /** Writes a fresh checklist into today's overview, so the home screen and the flow share one truth. */
 export function putChecklist(queryClient: QueryClient, checklist: DailyChecklist) {
+  if (checklist.status === "SUBMITTED") void queryClient.invalidateQueries({ queryKey: ["checklist-history"] });
   queryClient.setQueryData<TodayCache>(["daily-checklists-today"], (old) => {
-    if (!old?.data) return old;
+    // Only today's overview holds today's checklists; an older one opened from history must not overwrite them.
+    if (!old?.data || old.data.checklist_date !== checklist.checklist_date) return old;
     const submitted = checklist.status === "SUBMITTED";
     const phases = old.data.phases.map((p) =>
       p.phase === checklist.phase ? { ...p, checklist, can_start: submitted ? false : p.can_start } : p,
@@ -295,6 +297,35 @@ export function useMarkAllRead() {
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: ["notifications"] });
       void queryClient.invalidateQueries({ queryKey: ["notifications-unread"] });
+    },
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* Checklist history                                                   */
+/* ------------------------------------------------------------------ */
+export function useChecklistHistory(phase: ChecklistPhaseName | null) {
+  const { status } = useSession();
+  return useInfiniteQuery({
+    queryKey: ["checklist-history", phase ?? "all"],
+    queryFn: ({ pageParam }) => api.myChecklists(pageParam, phase),
+    initialPageParam: 1,
+    getNextPageParam: (last) => (last.pagination.has_next ? last.pagination.page + 1 : undefined),
+    enabled: status === "authenticated",
+    staleTime: 30_000,
+  });
+}
+
+/** One past (or current) checklist by id, for the detail screen. Keeps polling only while the AI is still reading. */
+export function useChecklistById(id: string) {
+  const { status } = useSession();
+  return useQuery({
+    queryKey: ["daily-checklist", id],
+    queryFn: () => api.getChecklist(id),
+    enabled: status === "authenticated",
+    refetchInterval: (query) => {
+      const state = query.state.data;
+      return state?.status === "SUBMITTED" && (state.analysis.status === "PENDING" || state.analysis.status === "PROCESSING") ? 3000 : false;
     },
   });
 }

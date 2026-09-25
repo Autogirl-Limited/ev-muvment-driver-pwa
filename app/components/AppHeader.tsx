@@ -55,8 +55,9 @@ export function AppHeader() {
     };
   }, [open]);
 
-  const isSub = SUB_PAGES.has(pathname);
-  const title = TITLES[pathname];
+  const isDetail = pathname.startsWith("/checklist/view/");
+  const isSub = SUB_PAGES.has(pathname) || isDetail;
+  const title = isDetail ? "Checklist" : TITLES[pathname];
 
   return (
     <header className={`app-header ${scrolled ? "scrolled" : ""}`}>

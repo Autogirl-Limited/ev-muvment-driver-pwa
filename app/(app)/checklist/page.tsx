@@ -1,12 +1,11 @@
-import { ClipboardCheck } from "lucide-react";
-import { EmptyState } from "../../components/Ui";
+import { ChecklistHistory } from "../../components/checklist/ChecklistHistory";
+import { TodayBoard } from "../../components/checklist/TodayBoard";
 
 export default function ChecklistPage() {
   return (
-    <div className="screen-enter">
-      <EmptyState icon={<ClipboardCheck size={30} />} title="Checklist is coming soon">
-        Your daily vehicle checks will live here, so nothing gets missed before you hit the road.
-      </EmptyState>
+    <div className="screen-enter cl-hub">
+      <TodayBoard />
+      <ChecklistHistory />
     </div>
   );
 }

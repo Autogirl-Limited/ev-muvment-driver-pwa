@@ -73,7 +73,16 @@ function Scanning() {
   );
 }
 
-export function ChecklistResult({ checklist: initial, phase }: { checklist: DailyChecklist; phase: ChecklistPhaseName }) {
+export function ChecklistResult({
+  checklist: initial,
+  phase,
+  history = false,
+}: {
+  checklist: DailyChecklist;
+  phase: ChecklistPhaseName;
+  /** Viewing a past checklist rather than one just submitted. */
+  history?: boolean;
+}) {
   const copy = PHASE_COPY[phase];
   const polled = useChecklistAnalysis(initial.id, true);
   const checklist = polled.data ?? initial;
@@ -91,6 +100,10 @@ export function ChecklistResult({ checklist: initial, phase }: { checklist: Dail
   const verdict = checklist.comparison?.verdict ? VERDICT[checklist.comparison.verdict] : null;
   const condition = checklist.condition ? CONDITION[checklist.condition.status] : null;
   const badPhotos = checklist.images.filter((image) => image.analysis?.image_valid === false);
+  const dayText = new Intl.DateTimeFormat("en-NG", { timeZone: "Africa/Lagos", weekday: "short", day: "numeric", month: "short" }).format(new Date(`${checklist.checklist_date}T12:00:00+01:00`));
+  const submittedAt = checklist.submitted_at
+    ? new Intl.DateTimeFormat("en-NG", { timeZone: "Africa/Lagos", hour: "numeric", minute: "2-digit" }).format(new Date(checklist.submitted_at))
+    : null;
 
   return (
     <div className="cl-flow cl-result">
@@ -98,8 +111,8 @@ export function ChecklistResult({ checklist: initial, phase }: { checklist: Dail
         <span className="cl-done-icon">
           <Check size={30} strokeWidth={3} />
         </span>
-        <h2>{copy.doneTitle}</h2>
-        <p>{copy.doneSub}</p>
+        <h2>{history ? `${copy.name} · ${dayText}` : copy.doneTitle}</h2>
+        <p>{history ? (submittedAt ? `Submitted at ${submittedAt}` : "Submitted") : copy.doneSub}</p>
       </section>
 
       {reading ? <Scanning /> : null}
@@ -236,8 +249,8 @@ export function ChecklistResult({ checklist: initial, phase }: { checklist: Dail
         </ul>
       </section>
 
-      <Link className="primary-button" href="/">
-        Back to home
+      <Link className="primary-button" href={history ? "/checklist" : "/"}>
+        {history ? "Back to checklists" : "Back to home"}
       </Link>
 
       <ReadingsEditor checklist={checklist} open={editing} onClose={() => setEditing(false)} />

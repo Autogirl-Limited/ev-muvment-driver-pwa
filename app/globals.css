@@ -3675,3 +3675,219 @@ dialog.modal::backdrop {
   border-radius: 50%;
   background: var(--accent);
 }
+
+/* ------------------------------------------------------------------ */
+/* Checklist hub                                                       */
+/* ------------------------------------------------------------------ */
+.cl-hub {
+  display: grid;
+  gap: 1.5rem;
+  padding-bottom: 1rem;
+}
+
+.tb,
+.ch {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.tb-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.tb-head h2 {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 1.05rem;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+
+.tb-head small {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.tb-skeleton {
+  min-height: 17rem;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(100deg, var(--surface-2) 30%, var(--surface) 50%, var(--surface-2) 70%) 0 0 / 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+.tb-card {
+  --accent: var(--primary);
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  animation: screen-in 380ms var(--ease) both;
+}
+
+.tb-card.tone-idle {
+  --accent: var(--line-strong);
+}
+
+.tb-card.tone-ok {
+  --accent: var(--success);
+}
+
+.tb-card.tone-warn {
+  --accent: #e08a10;
+}
+
+.tb-card.tone-bad {
+  --accent: var(--danger);
+  background: color-mix(in srgb, var(--danger) 5%, var(--surface));
+  animation: screen-in 380ms var(--ease) both, jr-alarm 2.2s ease-in-out 400ms infinite;
+}
+
+.tb-card > header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.tb-card > header > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.tb-card > header strong,
+.tb-card > header small {
+  display: block;
+}
+
+.tb-card > header strong {
+  font-size: 1rem;
+  font-weight: 720;
+}
+
+.tb-card > header small {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.tb-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2.3rem;
+  height: 2.3rem;
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  color: var(--accent);
+}
+
+.tb-card.tone-idle .tb-icon {
+  color: var(--subtle);
+}
+
+.tb-line {
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+
+.tb-line b {
+  color: var(--foreground);
+  font-weight: 700;
+}
+
+.tb-card.tone-bad .tb-line b {
+  color: var(--danger);
+}
+
+.tb-progress {
+  height: 0.35rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-2);
+}
+
+.tb-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 1s linear;
+}
+
+.tb-action {
+  min-height: 3rem;
+  font-size: 0.95rem;
+}
+
+.tb-foot {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--subtle);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.tb-foot svg {
+  flex: none;
+}
+
+.ch-list {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  list-style: none;
+}
+
+.ch-list li + li {
+  border-top: 1px solid var(--line);
+}
+
+.ch-row {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.8rem 0.9rem;
+  color: inherit;
+  text-decoration: none;
+  transition: background-color 160ms;
+}
+
+.ch-row:active {
+  background: var(--surface-2);
+}
+
+.ch-row > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.ch-row strong,
+.ch-row small {
+  display: block;
+}
+
+.ch-row strong {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.ch-row small {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.ch-row > svg {
+  flex: none;
+  color: var(--subtle);
+}

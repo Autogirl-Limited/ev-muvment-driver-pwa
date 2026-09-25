@@ -19,6 +19,7 @@ const ROUTES: Record<string, { methods: string[]; auth?: boolean }> = {
   "charge-sessions/mine/stats": { methods: ["GET"], auth: true },
   "daily-checklists/today": { methods: ["GET"], auth: true },
   "daily-checklists/start": { methods: ["POST"], auth: true },
+  "daily-checklists/mine": { methods: ["GET"], auth: true },
   "pickup-requests": { methods: ["POST"], auth: true },
   "pickup-requests/mine": { methods: ["GET"], auth: true },
   "notifications": { methods: ["GET"], auth: true },

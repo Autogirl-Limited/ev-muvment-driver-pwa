@@ -136,6 +136,12 @@ export const api = {
   markAllNotificationsRead: () => post<null>("/notifications/read-all"),
 
   // ---- Daily checklist ----
+  async myChecklists(page: number, phase: ChecklistPhaseName | null) {
+    const params = new URLSearchParams({ page: String(page), page_size: "20" });
+    if (phase) params.set("phase", phase);
+    return (await request<Page<DailyChecklist>>(`/daily-checklists/mine?${params}`)).data as Page<DailyChecklist>;
+  },
+
   async startChecklist(phase: ChecklistPhaseName, position: Position) {
     return (await post<DailyChecklist>("/daily-checklists/start", { phase, ...position })).data as DailyChecklist;
   },

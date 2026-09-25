@@ -11,11 +11,10 @@ export default function manifest(): MetadataRoute.Manifest {
     background_color: "#f6f8fd",
     theme_color: "#f6f8fd",
     icons: [
-      {
-        src: "/favicon.ico",
-        sizes: "any",
-        type: "image/x-icon",
-      },
+      { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+      // Full-bleed with the marks kept inside the safe zone, so Android can crop it to any shape.
+      { src: "/icons/maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
   };
 }

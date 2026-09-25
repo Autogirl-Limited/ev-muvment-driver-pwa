@@ -24,7 +24,7 @@ const invalidate = (queryClient: QueryClient, ...keys: string[]) =>
 function showSystemNotification(n: AppNotification, onOpen: () => void) {
   if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
   try {
-    const shown = new Notification(n.title, { body: n.description, icon: "/images/logo/icon.png", tag: n.id });
+    const shown = new Notification(n.title, { body: n.description, icon: "/icons/icon-192.png", tag: n.id });
     shown.onclick = () => {
       window.focus();
       onOpen();

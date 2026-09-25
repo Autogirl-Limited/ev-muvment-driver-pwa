@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { useSession } from "next-auth/react";
 import {
   ArrowLeft,
@@ -9,10 +8,13 @@ import {
   Car,
   Check,
   CircleAlert,
+  Hourglass,
   Keyboard,
   Plug,
+  Plus,
   QrCode,
   RefreshCw,
+  ShieldCheck,
   Wallet,
   Zap,
 } from "lucide-react";
@@ -23,17 +25,21 @@ import { kwh, lagosDate, naira } from "../../lib/format";
 import { resolveDateFilter } from "../../lib/date-range";
 import {
   CHARGES_PAGE_SIZE,
+  CREDITS_PAGE_SIZE,
   useChargeQuote,
   useChargerConnectors,
   useChargeSessions,
   useChargeStats,
   useStartCharge,
+  useWalletAllocations,
   useWalletStats,
 } from "../../lib/queries";
-import type { ChargeQuote, ChargerInfo, ChargeStarted } from "../../lib/types";
+import { chargerIdFrom } from "../../lib/charger-code";
+import type { ChargeQuote, ChargerInfo, ChargeStarted, WalletAllocation } from "../../lib/types";
 import { Pagination } from "../Pagination";
 import { Spinner } from "../Ui";
 import { QrScanner } from "./QrScanner";
+import { TopUpFlow } from "./TopUp";
 
 type Step =
   | { k: "home" }
@@ -41,9 +47,20 @@ type Step =
   | { k: "connectors"; charger: ChargerInfo }
   | { k: "plug"; charger: ChargerInfo; connectorId: string }
   | { k: "amount"; charger: ChargerInfo; connectorId: string; quote: ChargeQuote; quotedAt: number }
+  | { k: "topup"; suggested?: number; back: Step }
   | { k: "done"; result: ChargeStarted; chargerId: string; connectorId: string };
 
 const STALE_QUOTE_MS = 3 * 60_000;
+
+/** Ticks every 15s so "expires soon" banners drop off by themselves. */
+function useNow() {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 15_000);
+    return () => window.clearInterval(timer);
+  }, []);
+  return now;
+}
 
 const when = (iso: string) =>
   new Intl.DateTimeFormat("en-NG", { timeZone: "Africa/Lagos", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }).format(new Date(iso));
@@ -57,16 +74,121 @@ function Back({ onClick, label = "Back" }: { onClick: () => void; label?: string
 }
 
 /* ---------------------------------------------------------------- */
-/* Home: wallet, scan, recent charges                                */
+/* Home: wallet, two clear actions, history                          */
 /* ---------------------------------------------------------------- */
-function Home({ hasVehicle, onScan }: { hasVehicle: boolean; onScan: () => void }) {
+const CREDIT_STATUS: Record<WalletAllocation["status"], { label: string; tone: string }> = {
+  PENDING_PAYMENT: { label: "Awaiting payment", tone: "warn" },
+  AWAITING_ALLOCATION: { label: "Crediting", tone: "idle" },
+  COMPLETED: { label: "Added", tone: "ok" },
+  EXPIRED: { label: "Expired", tone: "idle" },
+  CANCELLED: { label: "Cancelled", tone: "idle" },
+};
+
+function History() {
+  const [tab, setTab] = useState<"charges" | "credits">("charges");
+  const [chargePage, setChargePage] = useState(1);
+  const [creditPage, setCreditPage] = useState(1);
+  const charges = useChargeSessions(chargePage);
+  const credits = useWalletAllocations(creditPage);
+  const list = tab === "charges" ? charges : credits;
+
+  return (
+    <section className="tx" aria-label="Wallet activity">
+      <div className="nt-tabs" role="tablist">
+        <button aria-selected={tab === "charges"} role="tab" type="button" onClick={() => setTab("charges")}>
+          Charges
+        </button>
+        <button aria-selected={tab === "credits"} role="tab" type="button" onClick={() => setTab("credits")}>
+          Credit added
+        </button>
+      </div>
+
+      {list.isPending ? (
+        <ul className="tx-list" aria-busy="true">
+          {[0, 1, 2].map((i) => (
+            <li className="tx-skeleton" key={i} />
+          ))}
+        </ul>
+      ) : list.isError ? (
+        <div className="panel">
+          <p className="empty">
+            <CircleAlert size={18} /> Couldn&apos;t load this list.
+          </p>
+          <button className="ghost-button" type="button" onClick={() => void list.refetch()}>
+            Try again
+          </button>
+        </div>
+      ) : !list.data?.items.length ? (
+        <div className="panel">
+          <p className="empty">
+            <BatteryCharging size={18} /> {tab === "charges" ? "No charges yet. Your first one will show up here." : "No credit added yet."}
+          </p>
+        </div>
+      ) : (
+        <div className={`tx-body ${list.isPlaceholderData ? "loading" : ""}`}>
+          <ul className="tx-list">
+            {tab === "charges"
+              ? charges.data?.items.map((s) => (
+                  <li className="tx-row static" key={s.id}>
+                    <span className="tx-avatar ch-bolt">
+                      <Zap size={17} />
+                    </span>
+                    <span className="tx-main">
+                      <strong>{s.charger_id.split("/").pop() ?? s.charger_id} · Plug {s.connector_id}</strong>
+                      <small>{when(s.created_at)}</small>
+                    </span>
+                    <span className="tx-side">
+                      <b className="out">−{naira(s.amount)}</b>
+                      <small>{s.energy_kwh != null ? `≈ ${s.energy_kwh.toFixed(2)} kWh` : "—"}</small>
+                    </span>
+                  </li>
+                ))
+              : credits.data?.items.map((a) => {
+                  const status = CREDIT_STATUS[a.status];
+                  return (
+                    <li className="tx-row static" key={a.id}>
+                      <span className="tx-avatar">
+                        <Wallet size={17} />
+                      </span>
+                      <span className="tx-main">
+                        <strong>{a.type === "FREE_GRANT" ? "Free credit from EV Muvment" : "Wallet top-up"}</strong>
+                        <small>{when(a.created_at)}</small>
+                      </span>
+                      <span className="tx-side">
+                        <b className={a.status === "COMPLETED" ? "" : "out"}>{a.status === "COMPLETED" ? "+" : ""}{naira(a.amount)}</b>
+                        <small className={`cl-tag ${status.tone}`}>{status.label}</small>
+                      </span>
+                    </li>
+                  );
+                })}
+          </ul>
+          <Pagination
+            busy={list.isFetching}
+            page={list.data.pagination.page}
+            pageSize={tab === "charges" ? CHARGES_PAGE_SIZE : CREDITS_PAGE_SIZE}
+            totalItems={list.data.pagination.total_items}
+            totalPages={list.data.pagination.total_pages}
+            onPage={tab === "charges" ? setChargePage : setCreditPage}
+          />
+        </div>
+      )}
+    </section>
+  );
+}
+
+function Home({ hasVehicle, onScan, onTopup }: { hasVehicle: boolean; onScan: () => void; onTopup: () => void }) {
   const { data: session } = useSession();
   const wallet = useWalletStats();
   const month = useChargeStats(resolveDateFilter({ preset: "month" }, lagosDate()));
-  const [page, setPage] = useState(1);
-  const list = useChargeSessions(page);
+  const recent = useWalletAllocations(1);
+  const now = useNow();
   const balance = wallet.data?.wallet_balance ?? session?.profile?.user.ev_wallet_balance ?? 0;
-  const data = list.data;
+  const empty = balance <= 0;
+
+  const openTopup = recent.data?.items.find(
+    (a) => a.status === "PENDING_PAYMENT" && (!a.checkout_expires_at || Date.parse(a.checkout_expires_at) > now),
+  );
+  const crediting = recent.data?.items.find((a) => a.status === "AWAITING_ALLOCATION");
 
   return (
     <>
@@ -84,19 +206,52 @@ function Home({ hasVehicle, onScan }: { hasVehicle: boolean; onScan: () => void 
         <strong className="ch-balance">{naira(balance)}</strong>
         <p>{wallet.data ? <>Enough for about <b>{kwh(wallet.data.wallet_balance_kwh)} kWh</b> of charging</> : "Loading your balance…"}</p>
 
-        <button className="ch-scan" disabled={!hasVehicle} type="button" onClick={onScan}>
-          <QrCode size={22} /> Scan charger to start
-        </button>
-        <Link className="ch-link" href="/payment">
-          Need more credit? See your account details
-        </Link>
+        <div className="ch-actions">
+          <button className={empty ? "ch-btn alt" : "ch-btn"} disabled={!hasVehicle} type="button" onClick={onScan}>
+            <QrCode size={20} /> Charge my car
+          </button>
+          <button className={empty ? "ch-btn" : "ch-btn alt"} disabled={!hasVehicle} type="button" onClick={onTopup}>
+            <Plus size={20} /> Add credit
+          </button>
+        </div>
+        {empty && hasVehicle ? <small className="ch-hint">Your wallet is empty. Add credit to start charging.</small> : null}
       </section>
+
+      {openTopup ? (
+        <button className="tu-open" type="button" onClick={onTopup}>
+          <Hourglass size={18} />
+          <span>
+            <b>Finish your {naira(openTopup.amount)} top-up</b>
+            <small>Waiting for your bank transfer. Tap to see the account details.</small>
+          </span>
+        </button>
+      ) : crediting ? (
+        <div className="tu-open static">
+          <ShieldCheck size={18} />
+          <span>
+            <b>Payment received: {naira(crediting.amount)}</b>
+            <small>We&apos;re crediting your wallet. No need to pay again.</small>
+          </span>
+        </div>
+      ) : null}
 
       {!hasVehicle ? (
         <div className="cl-notice">
-          <Car size={16} /> You can start charging once an admin assigns you a vehicle. We&apos;ll let you know.
+          <Car size={16} /> You can charge and add credit once an admin assigns you a vehicle. We&apos;ll let you know.
         </div>
-      ) : null}
+      ) : (
+        <ol className="ch-how" aria-label="How charging works">
+          <li>
+            <b>1</b> Scan the charger
+          </li>
+          <li>
+            <b>2</b> Pick a plug
+          </li>
+          <li>
+            <b>3</b> Pay &amp; charge
+          </li>
+        </ol>
+      )}
 
       <div className="stat-row">
         <div className="stat">
@@ -109,65 +264,7 @@ function Home({ hasVehicle, onScan }: { hasVehicle: boolean; onScan: () => void 
         </div>
       </div>
 
-      <section className="tx" aria-label="Charging history">
-        <header className="tx-head">
-          <h2>
-            <BatteryCharging size={16} /> Recent charges
-          </h2>
-        </header>
-        {list.isPending ? (
-          <ul className="tx-list" aria-busy="true">
-            {[0, 1, 2].map((i) => (
-              <li className="tx-skeleton" key={i} />
-            ))}
-          </ul>
-        ) : list.isError ? (
-          <div className="panel">
-            <p className="empty">
-              <CircleAlert size={18} /> Couldn&apos;t load your charges.
-            </p>
-            <button className="ghost-button" type="button" onClick={() => void list.refetch()}>
-              Try again
-            </button>
-          </div>
-        ) : !data?.items.length ? (
-          <div className="panel">
-            <p className="empty">
-              <BatteryCharging size={18} /> No charges yet. Your first one will show up here.
-            </p>
-          </div>
-        ) : (
-          <div className={`tx-body ${list.isPlaceholderData ? "loading" : ""}`}>
-            <ul className="tx-list">
-              {data.items.map((s) => (
-                <li className="tx-row static" key={s.id}>
-                  <span className="tx-avatar ch-bolt">
-                    <Zap size={17} />
-                  </span>
-                  <span className="tx-main">
-                    <strong>
-                      {s.charger_id} · Plug {s.connector_id}
-                    </strong>
-                    <small>{when(s.created_at)}</small>
-                  </span>
-                  <span className="tx-side">
-                    <b className="out">−{naira(s.amount)}</b>
-                    <small>{s.energy_kwh != null ? `≈ ${s.energy_kwh.toFixed(2)} kWh` : "—"}</small>
-                  </span>
-                </li>
-              ))}
-            </ul>
-            <Pagination
-              busy={list.isFetching}
-              page={data.pagination.page}
-              pageSize={CHARGES_PAGE_SIZE}
-              totalItems={data.pagination.total_items}
-              totalPages={data.pagination.total_pages}
-              onPage={setPage}
-            />
-          </div>
-        )}
-      </section>
+      <History />
     </>
   );
 }
@@ -180,7 +277,20 @@ function Scan({ busy, error, onCharger, onBack }: { busy: boolean; error: string
   const [cameraFailed, setCameraFailed] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [showManual, setShowManual] = useState(false);
+  const [codeError, setCodeError] = useState<string | null>(null);
   const id = manual.trim();
+
+  // The QR holds a LotGrids link (…?charge=<charger id>); a typed id or a pasted link both work.
+  const submit = (text: string) => {
+    const chargerId = chargerIdFrom(text);
+    if (!chargerId) {
+      setCodeError("That QR code isn't for a charger. Scan the code on the charger itself.");
+      setAttempt((n) => n + 1); // restart the camera so they can try again
+      return;
+    }
+    setCodeError(null);
+    onCharger(chargerId);
+  };
 
   // A failed lookup restarts the camera so the driver can simply point at the code again.
   const lastError = useRef<string | null>(null);
@@ -204,13 +314,13 @@ function Scan({ busy, error, onCharger, onBack }: { busy: boolean; error: string
             <span>Finding your charger…</span>
           </div>
         ) : (
-          <QrScanner key={attempt} onError={setCameraFailed} onScan={onCharger} />
+          <QrScanner key={attempt} onError={setCameraFailed} onScan={submit} />
         )}
       </div>
 
-      {error ? (
+      {error || codeError ? (
         <div className="cl-notice bad" role="alert">
-          <CircleAlert size={16} /> {error}
+          <CircleAlert size={16} /> {error ?? codeError}
         </div>
       ) : cameraFailed ? (
         <div className="cl-notice">
@@ -225,12 +335,12 @@ function Scan({ busy, error, onCharger, onBack }: { busy: boolean; error: string
           className="ch-manual"
           onSubmit={(event) => {
             event.preventDefault();
-            if (id) onCharger(id);
+            if (id) submit(id);
           }}
         >
           <div className="field">
             <div className="field-top">
-              <label htmlFor="charger-id">Charger ID</label>
+              <label htmlFor="charger-id">Charger code or link</label>
             </div>
             <div className="field-shell">
               <input
@@ -249,7 +359,7 @@ function Scan({ busy, error, onCharger, onBack }: { busy: boolean; error: string
         </form>
       ) : (
         <button className="ghost-button" type="button" onClick={() => setShowManual(true)}>
-          <Keyboard size={18} /> Enter charger ID instead
+          <Keyboard size={18} /> Enter charger code instead
         </button>
       )}
     </div>
@@ -375,6 +485,7 @@ function AmountStep({
   onRequote,
   requoting,
   onStarted,
+  onTopup,
   onBack,
 }: {
   charger: ChargerInfo;
@@ -385,6 +496,8 @@ function AmountStep({
   onRequote: () => void;
   requoting: boolean;
   onStarted: (result: ChargeStarted) => void;
+  /** Opens the top-up flow, suggesting how much is missing. */
+  onTopup: (suggested: number) => void;
   onBack: () => void;
 }) {
   const start = useStartCharge();
@@ -515,8 +628,11 @@ function AmountStep({
 
           {!canFull ? (
             <div className="cl-notice">
-              <Wallet size={16} /> Your wallet doesn&apos;t cover a full charge. Charge what you can, or{" "}
-              <Link href="/payment">add credit</Link> first.
+              <Wallet size={16} /> Your wallet is {naira(full - balance)} short of a full charge. Charge what you can, or{" "}
+              <button className="ch-inline" type="button" onClick={() => onTopup(full - balance)}>
+                add {naira(full - balance)} credit
+              </button>{" "}
+              first.
             </div>
           ) : null}
         </>
@@ -535,9 +651,9 @@ function AmountStep({
       ) : null}
 
       {max < 1 ? (
-        <Link className="primary-button" href="/payment">
+        <button className="primary-button" type="button" onClick={() => onTopup(full)}>
           <Wallet size={19} /> Add credit
-        </Link>
+        </button>
       ) : stale ? (
         <button className="primary-button" disabled={requoting} type="button" onClick={onRequote}>
           {requoting ? <Spinner /> : <RefreshCw size={19} />} Refresh price
@@ -633,7 +749,20 @@ export function ChargeFlow() {
     });
   };
 
-  if (step.k === "home") return <Home hasVehicle={hasVehicle} onScan={() => go({ k: "scan" })} />;
+  if (step.k === "home") return <Home hasVehicle={hasVehicle} onScan={() => go({ k: "scan" })} onTopup={() => go({ k: "topup", back: { k: "home" } })} />;
+
+  if (step.k === "topup") {
+    const { back } = step;
+    return (
+      <TopUpFlow
+        doneLabel={back.k === "home" ? "Done" : "Continue to charging"}
+        suggested={step.suggested}
+        onBack={() => go(back)}
+        // The balance changed, so a charge in progress needs a fresh price before it can start.
+        onDone={() => go(back.k === "amount" ? { k: "plug", charger: back.charger, connectorId: back.connectorId } : back)}
+      />
+    );
+  }
 
   if (step.k === "scan")
     return <Scan busy={connectors.isPending} error={error} onBack={() => go({ k: "home" })} onCharger={loadCharger} />;
@@ -705,8 +834,10 @@ export function ChargeFlow() {
         onBack={() => go({ k: "connectors", charger: step.charger })}
         onRequote={() => quote(step.charger, step.connectorId)}
         onStarted={(result) => go({ k: "done", result, chargerId: step.charger.charger_id, connectorId: step.connectorId })}
+        onTopup={(suggested) => go({ k: "topup", suggested, back: step })}
       />
     );
 
+  if (step.k !== "done") return null;
   return <Done result={step.result} onDone={() => go({ k: "home" })} />;
 }

@@ -127,7 +127,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
         case "wallet_allocation.updated":
         case "energy_rate.updated":
           refreshProfile();
-          return invalidate(queryClient, "wallet-stats");
+          return invalidate(queryClient, "wallet-stats", "wallet-allocations", "wallet-allocation");
 
         case "dva_transaction.created":
           return invalidate(queryClient, "dva-stats", "dva-transactions");

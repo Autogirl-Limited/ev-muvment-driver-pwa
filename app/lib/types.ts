@@ -232,3 +232,21 @@ export type ChargeSession = {
   remaining_balance: number | null;
   energy_kwh: number | null;
 };
+
+export type WalletAllocation = {
+  id: string;
+  created_at: string;
+  type: "PAID_TOPUP" | "FREE_GRANT";
+  status: "PENDING_PAYMENT" | "AWAITING_ALLOCATION" | "COMPLETED" | "CANCELLED" | "EXPIRED";
+  amount: number;
+  rate_per_kwh: number;
+  kwh_equivalent: number;
+  checkout_account_number: string | null;
+  checkout_account_name: string | null;
+  checkout_bank_name: string | null;
+  checkout_expires_at: string | null;
+  paid_at: string | null;
+  notes: string | null;
+};
+
+export type TopupPreview = { amount: number; rate_per_kwh: number; kwh_equivalent: number };

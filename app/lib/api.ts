@@ -18,6 +18,8 @@ import type {
   PickupRequest,
   PickupRequestInput,
   TodayChecklists,
+  TopupPreview,
+  WalletAllocation,
   UploadTarget,
   WalletStats,
 } from "./types";
@@ -131,6 +133,25 @@ export const api = {
   },
 
   createPickupRequest: (body: PickupRequestInput) => post<PickupRequest>("/pickup-requests", body),
+
+  // ---- Wallet top-ups ----
+  async topupPreview(amount: number) {
+    const params = new URLSearchParams({ amount: String(amount) });
+    return (await request<TopupPreview>(`/wallet-allocations/topup-preview?${params}`)).data as TopupPreview;
+  },
+
+  async createTopup(amount: number) {
+    return (await post<WalletAllocation>("/wallet-allocations/topups", { amount })).data as WalletAllocation;
+  },
+
+  async walletAllocations(page: number, pageSize: number) {
+    const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
+    return (await request<Page<WalletAllocation>>(`/wallet-allocations/mine?${params}`)).data as Page<WalletAllocation>;
+  },
+
+  async walletAllocation(id: string) {
+    return (await request<WalletAllocation>(`/wallet-allocations/${id}`)).data as WalletAllocation;
+  },
 
   // ---- Charging ----
   async chargerConnectors(chargerId: string) {

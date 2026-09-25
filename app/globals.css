@@ -4758,3 +4758,274 @@ dialog.modal::backdrop {
   font-weight: 700;
   text-decoration: underline;
 }
+
+/* ------------------------------------------------------------------ */
+/* Charge home actions + top-up                                        */
+/* ------------------------------------------------------------------ */
+.ch-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+  margin-top: 0.7rem;
+}
+
+.ch-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 3.4rem;
+  padding: 0 0.6rem;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: #fff;
+  color: #054a35;
+  font-size: 0.95rem;
+  font-weight: 750;
+  box-shadow: 0 12px 26px -12px rgba(0, 0, 0, 0.5);
+  transition: transform 160ms var(--ease), opacity 200ms;
+}
+
+.ch-btn.alt {
+  border: 1.5px solid rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  box-shadow: none;
+}
+
+.ch-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.ch-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ch-hint {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.ch-how {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.4rem;
+  list-style: none;
+}
+
+.ch-how li {
+  display: grid;
+  justify-items: center;
+  gap: 0.35rem;
+  padding: 0.7rem 0.3rem;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 650;
+  text-align: center;
+}
+
+.ch-how b,
+.tu-how b {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 0.75rem;
+}
+
+.ch-inline {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font-weight: 750;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.tu-open {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid color-mix(in srgb, #e08a10 40%, var(--line));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, #e08a10 10%, var(--surface));
+  color: #b56a00;
+  text-align: left;
+}
+
+.tu-open.static {
+  border-color: color-mix(in srgb, var(--primary) 30%, var(--line));
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.tu-open svg {
+  flex: none;
+}
+
+.tu-open span {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.tu-open b {
+  color: var(--foreground);
+  font-size: 0.9rem;
+}
+
+.tu-open small {
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.tu-naira {
+  padding-left: 0.95rem;
+  color: var(--foreground);
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.tu-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.6rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.tu-preview span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.tu-preview b {
+  color: var(--success);
+}
+
+.tu-how {
+  display: grid;
+  gap: 0.5rem;
+  padding-top: 0.3rem;
+  color: var(--muted);
+  font-size: 0.84rem;
+  list-style: none;
+}
+
+.tu-how li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.tu-pay .acct {
+  min-height: 11rem;
+}
+
+.tu-amount {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border: 1.5px dashed var(--primary);
+  border-radius: var(--radius-md);
+  background: var(--primary-soft);
+  color: var(--primary);
+  text-align: left;
+}
+
+.tu-amount span {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.tu-amount small {
+  font-size: 0.75rem;
+  font-weight: 650;
+}
+
+.tu-amount b {
+  color: var(--foreground);
+  font-size: 1.5rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 760;
+  letter-spacing: -0.02em;
+}
+
+.tu-timer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.6rem;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.tu-timer b {
+  color: var(--foreground);
+  font-size: 1rem;
+}
+
+.tu-timer.urgent {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.tu-timer.urgent b {
+  color: var(--danger);
+}
+
+.tu-waiting {
+  display: grid;
+  justify-items: center;
+  gap: 0.3rem;
+  padding: 0.5rem 1rem 0;
+  color: var(--primary);
+  text-align: center;
+}
+
+.tu-waiting .jr-wait span {
+  background: var(--primary);
+}
+
+.tu-waiting strong {
+  color: var(--foreground);
+  font-size: 0.95rem;
+}
+
+.tu-waiting small {
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.tu-wait {
+  width: 60%;
+  color: var(--primary);
+}
+
+.tu-bad {
+  background: var(--danger-soft);
+  color: var(--danger);
+  box-shadow: 0 0 0 8px color-mix(in srgb, var(--danger) 8%, transparent);
+}

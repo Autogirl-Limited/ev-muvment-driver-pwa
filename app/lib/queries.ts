@@ -377,3 +377,65 @@ export function useStartCharge() {
     },
   });
 }
+
+/* ------------------------------------------------------------------ */
+/* Wallet top-ups                                                      */
+/* ------------------------------------------------------------------ */
+export const CREDITS_PAGE_SIZE = 6;
+
+export function useWalletAllocations(page: number) {
+  const { status } = useSession();
+  return useQuery({
+    queryKey: ["wallet-allocations", page],
+    queryFn: () => api.walletAllocations(page, CREDITS_PAGE_SIZE),
+    enabled: status === "authenticated",
+    staleTime: STATS_STALE,
+    placeholderData: keepPreviousData,
+  });
+}
+
+/** Price of a top-up as the driver types: debounced, and the last answer stays up while the next loads. */
+export function useTopupPreview(amount: number) {
+  const debounced = useDebounced(amount, 350);
+  const valid = Number.isInteger(debounced) && debounced > 0;
+  const query = useQuery({
+    queryKey: ["topup-preview", debounced],
+    queryFn: () => api.topupPreview(debounced),
+    enabled: valid,
+    staleTime: 60_000,
+    retry: false,
+    placeholderData: keepPreviousData,
+  });
+  return { ...query, settled: debounced === amount };
+}
+
+export function useCreateTopup() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (amount: number) => api.createTopup(amount),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["wallet-allocations"] });
+      void queryClient.invalidateQueries({ queryKey: ["wallet-stats"] });
+    },
+  });
+}
+
+/** Watches one top-up until it is credited or dead. The socket usually gets there first; this is the safety net. */
+export function useTopupStatus(id: string) {
+  const queryClient = useQueryClient();
+  return useQuery({
+    queryKey: ["wallet-allocation", id],
+    queryFn: async () => {
+      const allocation = await api.walletAllocation(id);
+      if (allocation.status !== "PENDING_PAYMENT") {
+        void queryClient.invalidateQueries({ queryKey: ["wallet-stats"] });
+        void queryClient.invalidateQueries({ queryKey: ["wallet-allocations"] });
+      }
+      return allocation;
+    },
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      return !status || status === "PENDING_PAYMENT" || status === "AWAITING_ALLOCATION" ? 8000 : false;
+    },
+  });
+}

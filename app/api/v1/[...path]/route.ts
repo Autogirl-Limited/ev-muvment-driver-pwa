@@ -17,6 +17,9 @@ const ROUTES: Record<string, { methods: string[]; auth?: boolean }> = {
   "dva-transactions/mine/stats": { methods: ["GET"], auth: true },
   "dva-transactions/mine": { methods: ["GET"], auth: true },
   "wallet-allocations/mine/stats": { methods: ["GET"], auth: true },
+  "wallet-allocations/mine": { methods: ["GET"], auth: true },
+  "wallet-allocations/topup-preview": { methods: ["GET"], auth: true },
+  "wallet-allocations/topups": { methods: ["POST"], auth: true },
   "charge-sessions/mine/stats": { methods: ["GET"], auth: true },
   "charge-sessions/mine": { methods: ["GET"], auth: true },
   "charging-sessions/connectors": { methods: ["POST"], auth: true },
@@ -40,6 +43,7 @@ const PATTERNS: [RegExp, { methods: string[]; auth?: boolean }][] = [
   [new RegExp(`^daily-checklists/${ID}/(uploads|images|submit|reanalyze)$`), { methods: ["POST"], auth: true }],
   [new RegExp(`^daily-checklists/${ID}/dashboard$`), { methods: ["PATCH"], auth: true }],
   [new RegExp(`^notifications/${ID}/read$`), { methods: ["PATCH"], auth: true }],
+  [new RegExp(`^wallet-allocations/${ID}$`), { methods: ["GET"], auth: true }],
 ];
 
 const fail = (status: number, message: string) =>

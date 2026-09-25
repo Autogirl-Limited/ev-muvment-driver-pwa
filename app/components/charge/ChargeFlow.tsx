@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import {
   ArrowLeft,
   BatteryCharging,
+  ChevronRight,
   Car,
   Check,
   CircleAlert,
@@ -417,9 +418,15 @@ function Connectors({
         {charger.connectors.map((c) => (
           <li key={c.connector_id}>
             <button className={c.available ? "free" : ""} disabled={!c.available} type="button" onClick={() => onPick(c.connector_id)}>
-              <Plug size={22} />
-              <strong>Plug {c.connector_id}</strong>
-              <small>{c.available ? "Free" : "In use"}</small>
+              <span className="ch-plug-icon">
+                <Plug size={22} />
+              </span>
+              <span className="ch-plug-info">
+                <strong>Plug {c.connector_id}</strong>
+                <small>{[charger.connector_type, charger.power_kw != null ? `${charger.power_kw} kW` : null].filter(Boolean).join(" · ") || "Connector"}</small>
+              </span>
+              <span className="ch-plug-status">{c.available ? "Free" : "In use"}</span>
+              {c.available ? <ChevronRight size={18} className="ch-plug-go" /> : null}
             </button>
           </li>
         ))}

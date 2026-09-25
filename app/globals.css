@@ -5029,3 +5029,59 @@ dialog.modal::backdrop {
   color: var(--danger);
   box-shadow: 0 0 0 8px color-mix(in srgb, var(--danger) 8%, transparent);
 }
+
+/* One connector per row */
+.ch-plugs {
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+}
+
+.ch-plugs button {
+  display: flex;
+  align-items: center;
+  justify-items: initial;
+  gap: 0.85rem;
+  padding: 0.85rem 0.95rem;
+  text-align: left;
+}
+
+.ch-plug-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2.8rem;
+  height: 2.8rem;
+  border-radius: 0.85rem;
+  background: color-mix(in srgb, currentColor 12%, var(--surface));
+}
+
+.ch-plug-info {
+  display: grid;
+  flex: 1;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.ch-plugs .ch-plug-info strong {
+  font-size: 1rem;
+}
+
+.ch-plugs .ch-plug-info small {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+.ch-plug-status {
+  flex: none;
+  padding: 0.28rem 0.7rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 14%, var(--surface));
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.ch-plug-go {
+  flex: none;
+  margin-left: -0.3rem;
+}

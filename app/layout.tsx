@@ -1,15 +1,15 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Roboto } from "next/font/google";
 import { Zap } from "lucide-react";
 import type { ReactNode } from "react";
 import { auth } from "../auth";
 import { Providers } from "./components/Providers";
 import "./globals.css";
 
-const inter = Inter({
+const roboto = Roboto({
   subsets: ["latin"],
   display: "swap",
-  variable: "--font-inter",
+  variable: "--font-roboto",
 });
 
 export const metadata: Metadata = {
@@ -48,7 +48,7 @@ export default async function RootLayout({
   const session = await auth();
 
   return (
-    <html lang="en" data-theme="light" className={inter.variable} suppressHydrationWarning>
+    <html lang="en" data-theme="light" className={roboto.variable} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>

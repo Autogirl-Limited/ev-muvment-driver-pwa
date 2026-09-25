@@ -3,7 +3,9 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ChevronRight, CircleAlert, ClipboardList, Flag, Play } from "lucide-react";
+import { resolveDateFilter, type DateFilter } from "../../lib/date-range";
 import { lagosDate } from "../../lib/format";
+import { DateRangeFilter } from "../DateRangeFilter";
 import { useChecklistHistory } from "../../lib/queries";
 import { dayLabel } from "../../lib/time";
 import type { ChecklistPhaseName, DailyChecklist } from "../../lib/types";
@@ -46,20 +48,21 @@ function Row({ c }: { c: DailyChecklist }) {
   );
 }
 
-/** Past checklists, newest first, grouped by day. Today's live on the board above. */
+/** Checklists in the chosen period (last 7 days by default), newest first, grouped by day. */
 export function ChecklistHistory() {
   const [phase, setPhase] = useState<ChecklistPhaseName | null>(null);
-  const query = useChecklistHistory(phase);
-  const today = lagosDate();
+  const [filter, setFilter] = useState<DateFilter>({ preset: "week" });
+  const range = resolveDateFilter(filter, lagosDate());
+  const query = useChecklistHistory(phase, range);
 
   const groups = useMemo(() => {
     const map = new Map<string, DailyChecklist[]>();
     for (const c of query.data?.pages.flatMap((page) => page.items) ?? []) {
-      if (c.checklist_date === today) continue;
+      if ((range.from && c.checklist_date < range.from) || (range.to && c.checklist_date > range.to)) continue;
       map.set(c.checklist_date, [...(map.get(c.checklist_date) ?? []), c]);
     }
     return [...map.entries()];
-  }, [query.data, today]);
+  }, [query.data, range.from, range.to]);
 
   return (
     <section className="ch" aria-label="Checklist history">
@@ -67,6 +70,7 @@ export function ChecklistHistory() {
         <h2>
           <ClipboardList size={16} /> History
         </h2>
+        <DateRangeFilter value={filter} onChange={setFilter} />
       </header>
 
       <div className="nt-tabs" role="tablist">
@@ -90,8 +94,8 @@ export function ChecklistHistory() {
           </button>
         </EmptyState>
       ) : groups.length === 0 ? (
-        <EmptyState icon={<ClipboardList size={30} />} title="No past checklists yet">
-          Once you&apos;ve completed a day, it will show up here so you can look back at it.
+        <EmptyState icon={<ClipboardList size={30} />} title="No checklists in this period">
+          Try a wider date range to look further back.
         </EmptyState>
       ) : (
         <>

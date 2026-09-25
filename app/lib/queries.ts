@@ -304,11 +304,11 @@ export function useMarkAllRead() {
 /* ------------------------------------------------------------------ */
 /* Checklist history                                                   */
 /* ------------------------------------------------------------------ */
-export function useChecklistHistory(phase: ChecklistPhaseName | null) {
+export function useChecklistHistory(phase: ChecklistPhaseName | null, range: DateRange = {}) {
   const { status } = useSession();
   return useInfiniteQuery({
-    queryKey: ["checklist-history", phase ?? "all"],
-    queryFn: ({ pageParam }) => api.myChecklists(pageParam, phase),
+    queryKey: ["checklist-history", phase ?? "all", range.from ?? "", range.to ?? ""],
+    queryFn: ({ pageParam }) => api.myChecklists(pageParam, phase, range),
     initialPageParam: 1,
     getNextPageParam: (last) => (last.pagination.has_next ? last.pagination.page + 1 : undefined),
     enabled: status === "authenticated",

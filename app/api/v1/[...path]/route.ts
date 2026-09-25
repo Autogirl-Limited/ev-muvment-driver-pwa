@@ -15,6 +15,7 @@ const ROUTES: Record<string, { methods: string[]; auth?: boolean }> = {
   "auth/change-password": { methods: ["POST"], auth: true },
   "auth/logout": { methods: ["POST"], auth: true },
   "dva-transactions/mine/stats": { methods: ["GET"], auth: true },
+  "dva-transactions/mine": { methods: ["GET"], auth: true },
   "wallet-allocations/mine/stats": { methods: ["GET"], auth: true },
   "charge-sessions/mine/stats": { methods: ["GET"], auth: true },
   "daily-checklists/today": { methods: ["GET"], auth: true },

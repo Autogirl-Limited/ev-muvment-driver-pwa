@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type InfiniteData, type QueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient, type InfiniteData, type QueryClient } from "@tanstack/react-query";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { api, ApiError, type DateRange } from "./api";
 import { getPosition } from "./geo";
@@ -327,5 +327,21 @@ export function useChecklistById(id: string) {
       const state = query.state.data;
       return state?.status === "SUBMITTED" && (state.analysis.status === "PENDING" || state.analysis.status === "PROCESSING") ? 3000 : false;
     },
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* Money received                                                      */
+/* ------------------------------------------------------------------ */
+export const TRANSACTIONS_PAGE_SIZE = 8;
+
+export function useDvaTransactions(page: number, range: DateRange) {
+  const { status } = useSession();
+  return useQuery({
+    queryKey: ["dva-transactions", page, range.from ?? null, range.to ?? null],
+    queryFn: () => api.dvaTransactions(page, TRANSACTIONS_PAGE_SIZE, range),
+    enabled: status === "authenticated",
+    staleTime: STATS_STALE,
+    placeholderData: keepPreviousData, // the old page stays put while the next one loads
   });
 }

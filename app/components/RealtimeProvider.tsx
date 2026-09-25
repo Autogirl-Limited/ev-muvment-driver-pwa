@@ -130,7 +130,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
           return invalidate(queryClient, "wallet-stats");
 
         case "dva_transaction.created":
-          return invalidate(queryClient, "dva-stats");
+          return invalidate(queryClient, "dva-stats", "dva-transactions");
 
         default:
           return; // new event types are added over time; ignore what we don't know

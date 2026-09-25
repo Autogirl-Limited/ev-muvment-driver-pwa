@@ -187,3 +187,17 @@ export type Page<T> = {
   items: T[];
   pagination: { page: number; page_size: number; total_items: number; total_pages: number; has_next: boolean; has_prev: boolean };
 };
+
+export type DvaTransaction = {
+  id: string;
+  amount: number;
+  currency: string;
+  payer_name: string | null;
+  payer_account_number: string | null;
+  payer_bank_name: string | null;
+  narration: string | null;
+  transaction_reference: string;
+  payment_reference: string | null;
+  paid_at: string;
+  created_at: string;
+};

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
 import { BatteryCharging, Building2, CarFront, Wallet, X, Zap } from "lucide-react";
@@ -8,6 +8,7 @@ import { kwh, lagosDate, naira, vehicleImage } from "../lib/format";
 import { useChargeStats, useDvaStats, useWalletStats } from "../lib/queries";
 import type { DriverProfile } from "../lib/types";
 import { Modal } from "./Modal";
+import { Carousel, type CarouselSlide } from "./Carousel";
 import { resolveDateFilter, type DateFilter } from "../lib/date-range";
 import { bankIdentity, paymentAccounts } from "../lib/banks";
 import { DateRangeFilter } from "./DateRangeFilter";
@@ -191,77 +192,15 @@ export function StatsCarousel() {
   const { data: session } = useSession();
   const profile = session?.profile;
   const [period, setPeriod] = useState<DateFilter>({ preset: "today" });
-  const [active, setActive] = useState(0);
-  const track = useRef<HTMLDivElement>(null);
-
-  const onScroll = () => {
-    const el = track.current;
-    if (!el) return;
-    const items = Array.from(el.children) as HTMLElement[];
-    const nearest = items.reduce((best, item, index) =>
-      Math.abs(item.offsetLeft - el.scrollLeft) < Math.abs(items[best].offsetLeft - el.scrollLeft) ? index : best, 0);
-    setActive(nearest);
-  };
-
-  const goTo = (index: number) => {
-    const el = track.current;
-    const item = el?.children[index] as HTMLElement | undefined;
-    if (el && item) el.scrollTo({ left: item.offsetLeft });
-  };
 
   if (!profile) return null;
 
-  const slides: { key: string; label: string; node: ReactNode }[] = [
+  const slides: CarouselSlide[] = [
     { key: "payments", label: "Payments received", node: <PaymentsSlide profile={profile} period={period} onPeriod={setPeriod} /> },
     { key: "vehicle", label: "Your vehicle", node: <VehicleSlide profile={profile} /> },
     { key: "energy", label: "Energy wallet", node: <EnergySlide profile={profile} /> },
     { key: "charging", label: "Charging spent", node: <ChargeSlide period={period} onPeriod={setPeriod} /> },
   ];
 
-  return (
-    <section className="carousel" aria-roledescription="carousel" aria-label="Your account summary">
-      <div
-        className="carousel-track"
-        ref={track}
-        onScroll={onScroll}
-        tabIndex={0}
-        role="group"
-        aria-label="Account cards. Use left and right arrow keys to browse."
-        onKeyDown={(event) => {
-          if (event.target !== event.currentTarget) return;
-          const next = event.key === "ArrowRight" ? active + 1 : event.key === "ArrowLeft" ? active - 1 : null;
-          if (next === null) return;
-          event.preventDefault();
-          goTo(Math.max(0, Math.min(slides.length - 1, next)));
-        }}
-      >
-        {slides.map((slide, index) => (
-          <div
-            aria-label={`${index + 1} of ${slides.length}: ${slide.label}`}
-            aria-roledescription="slide"
-            className="carousel-item"
-            id={`stats-${slide.key}`}
-            key={slide.key}
-            role="group"
-            onFocusCapture={() => goTo(index)}
-          >
-            {slide.node}
-          </div>
-        ))}
-      </div>
-      <div className="carousel-dots">
-        {slides.map((slide, index) => (
-          <button
-            aria-current={active === index}
-            aria-label={`Show ${slide.label}`}
-            aria-controls={`stats-${slide.key}`}
-            className={active === index ? "on" : ""}
-            key={slide.key}
-            type="button"
-            onClick={() => goTo(index)}
-          />
-        ))}
-      </div>
-    </section>
-  );
+  return <Carousel idPrefix="stats" label="Your account summary" slides={slides} />;
 }

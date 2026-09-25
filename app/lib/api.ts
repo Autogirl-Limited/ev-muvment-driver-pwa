@@ -6,6 +6,7 @@ import type {
   DailyChecklist,
   DashboardReading,
   DvaStats,
+  DvaTransaction,
   FieldErrors,
   ImageType,
   Page,
@@ -99,6 +100,13 @@ export const api = {
   // Stats endpoints. Omit the range for all-time totals; dates are YYYY-MM-DD, inclusive.
   async dvaStats(range: DateRange) {
     return (await request<DvaStats>(`/dva-transactions/mine/stats${rangeQuery(range)}`)).data;
+  },
+
+  async dvaTransactions(page: number, pageSize: number, range: DateRange) {
+    const params = new URLSearchParams({ page: String(page), page_size: String(pageSize) });
+    if (range.from) params.set("dateFrom", range.from);
+    if (range.to) params.set("dateTo", range.to);
+    return (await request<Page<DvaTransaction>>(`/dva-transactions/mine?${params}`)).data as Page<DvaTransaction>;
   },
 
   async walletStats() {

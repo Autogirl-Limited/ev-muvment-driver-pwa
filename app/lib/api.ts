@@ -1,6 +1,7 @@
 import type {
   ApiEnvelope,
   AppNotification,
+  ChargeConfirmed,
   ChargeQuote,
   ChargerInfo,
   ChargeSession,
@@ -13,6 +14,7 @@ import type {
   DvaTransaction,
   FieldErrors,
   ImageType,
+  ManualChargeSession,
   Page,
   Paginated,
   PickupRequest,
@@ -165,6 +167,15 @@ export const api = {
   async startCharge(chargerId: string, connectorId: string, amount: number) {
     const body = { charger_id: chargerId, connector_id: connectorId, amount };
     return (await post<ChargeStarted>("/charging-sessions/start", body)).data as ChargeStarted;
+  },
+
+  // Manual chargers: wait for the operator's price, then pay it. Never /start these.
+  async manualChargeSession(sessionId: string) {
+    return (await request<ManualChargeSession>(`/charging-sessions/manual/${encodeURIComponent(sessionId)}`)).data as ManualChargeSession;
+  },
+
+  async confirmCharge(sessionId: string, amount: number) {
+    return (await post<ChargeConfirmed>("/charging-sessions/confirm", { session_id: sessionId, amount })).data as ChargeConfirmed;
   },
 
   async chargeSessions(page: number, pageSize: number) {

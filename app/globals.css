@@ -5198,3 +5198,91 @@ dialog.modal::backdrop {
     animation: none;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Manual chargers: waiting for the attendant, then a pay window       */
+/* ------------------------------------------------------------------ */
+.ch-wait .ch-lines {
+  width: 100%;
+}
+
+.ch-dots {
+  display: inline-flex;
+  gap: 0.4rem;
+}
+
+.ch-dots i {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--primary);
+  animation: ch-dot 1.2s ease-in-out infinite;
+}
+
+.ch-dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.ch-dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes ch-dot {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.8);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.ch-timer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 0.85rem 0.95rem;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.ch-timer b {
+  font-variant-numeric: tabular-nums;
+  font-weight: 760;
+}
+
+.ch-timer i {
+  --left: 100%;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: var(--left);
+  height: 0.25rem;
+  background: currentColor;
+  transition: width 1s linear;
+}
+
+.ch-timer.soon {
+  background: color-mix(in srgb, #e08a10 14%, var(--surface));
+  color: #b56a00;
+}
+
+.ch-timer.over {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ch-dots i {
+    animation: none;
+    opacity: 0.6;
+  }
+}

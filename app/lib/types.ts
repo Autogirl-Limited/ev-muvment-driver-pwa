@@ -214,7 +214,12 @@ export type ChargeQuote = {
   charger_id: string;
   connector_id: string;
   fleet_driver?: boolean;
-  quoted_amount: number;
+  /** A manual charger: an on-site operator sends the price later (see ManualChargeSession). */
+  awaiting_operator_quote?: boolean;
+  /** Set for manual chargers; the id to wait on and later pay with. */
+  session_id?: string | null;
+  /** Null while waiting for an operator's price. */
+  quoted_amount: number | null;
   /** Energy a full charge needs, in kWh. */
   kwh_needed?: number | null;
   /** This charger's own ₦/kWh price, which can differ from the platform rate. */
@@ -245,7 +250,24 @@ export type ChargeSession = {
   actual_dispensed_value?: number | null;
   /** Naira returned to the wallet because the charger delivered less than was paid. */
   refund_amount?: number | null;
+  ended_at?: string | null;
 };
+
+/** A manual charger's pending session, from `charge_session.quoted` or `GET /charging-sessions/manual/{id}`. */
+export type ManualChargeSession = {
+  session_id: string;
+  charger_id: string;
+  connector_id: string;
+  /** "QUOTED" once the operator has priced it; anything else means still waiting. */
+  status: string;
+  quoted_amount: number | null;
+  price_per_kwh: number | null;
+  kwh_needed: number | null;
+  /** The price can be paid until then (5 minutes after quoting). */
+  expires_at: string | null;
+};
+
+export type ChargeConfirmed = { session_id: string; status: string; confirmed_amount: number; remaining_balance: number };
 
 export type WalletAllocation = {
   id: string;

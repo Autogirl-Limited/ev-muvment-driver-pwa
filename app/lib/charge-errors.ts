@@ -28,6 +28,16 @@ export function chargeError(error: unknown): string {
   }
 }
 
+/** Paying an operator's price (`/charging-sessions/confirm`) has a few failures of its own. */
+export function confirmError(error: unknown): string {
+  if (error instanceof ApiError) {
+    if (error.statusCode === 403 || error.statusCode === 404) return "This charge has already been paid for or has ended. Please scan the charger and try again.";
+    // Not priced yet, the 5-minute window ran out, or the plug was taken: the server's text says which.
+    if (error.statusCode === 409) return error.message || "This price is no longer valid. Ask the attendant for a new one.";
+  }
+  return chargeError(error);
+}
+
 export const isStatus = (error: unknown, status: number) => error instanceof ApiError && error.statusCode === status;
 
 /** A start that may or may not have gone through: no response at all, or the provider timing out. */

@@ -7,9 +7,9 @@ import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { BellRing } from "lucide-react";
 import { toast } from "sonner";
 import { notificationTarget } from "../lib/notification-link";
-import { putChecklist } from "../lib/queries";
+import { putChecklist, type ManualQuoteCache } from "../lib/queries";
 import { playNotificationSound, unlockSound } from "../lib/sound";
-import type { AppNotification, ChargeSession, DailyChecklist } from "../lib/types";
+import type { AppNotification, ChargeSession, DailyChecklist, ManualChargeSession } from "../lib/types";
 
 export type RealtimeStatus = "connecting" | "live" | "offline";
 
@@ -135,6 +135,14 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
           if (session?.lotgrids_session_id) queryClient.setQueryData(["charge-session", "live", session.lotgrids_session_id], session);
           refreshProfile();
           return invalidate(queryClient, "wallet-stats", "charge-sessions", "charge-stats");
+        }
+
+        case "charge_session.quoted": {
+          // An attendant priced a manual charger's session; the waiting screen picks it up from this cache.
+          const quoted = data as ManualChargeSession;
+          if (quoted?.session_id)
+            queryClient.setQueryData<ManualQuoteCache>(["manual-session", quoted.session_id], { session: quoted, receivedAt: Date.now() });
+          return invalidate(queryClient, "wallet-stats");
         }
 
         case "dva_transaction.created":

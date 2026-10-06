@@ -25,6 +25,7 @@ const ROUTES: Record<string, { methods: string[]; auth?: boolean }> = {
   "charging-sessions/connectors": { methods: ["POST"], auth: true },
   "charging-sessions/quote": { methods: ["POST"], auth: true },
   "charging-sessions/start": { methods: ["POST"], auth: true },
+  "charging-sessions/confirm": { methods: ["POST"], auth: true },
   "daily-checklists/today": { methods: ["GET"], auth: true },
   "daily-checklists/start": { methods: ["POST"], auth: true },
   "daily-checklists/mine": { methods: ["GET"], auth: true },
@@ -45,6 +46,8 @@ const PATTERNS: [RegExp, { methods: string[]; auth?: boolean }][] = [
   [new RegExp(`^notifications/${ID}/read$`), { methods: ["PATCH"], auth: true }],
   [new RegExp(`^wallet-allocations/${ID}$`), { methods: ["GET"], auth: true }],
   [new RegExp(`^charge-sessions/${ID}$`), { methods: ["GET"], auth: true }],
+  // Provider session ids (e.g. sess_9f3ac2e1), not UUIDs.
+  [/^charging-sessions\/manual\/[A-Za-z0-9_-]{1,200}$/, { methods: ["GET"], auth: true }],
 ];
 
 const fail = (status: number, message: string) =>

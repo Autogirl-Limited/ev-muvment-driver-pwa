@@ -6,7 +6,7 @@ import { signIn, signOut, useSession } from "next-auth/react";
 import { api, ApiError, type DateRange } from "./api";
 import { getPosition } from "./geo";
 import type { ChecklistPhaseName, DailyChecklist, DashboardReading, PickupRequestInput } from "./types";
-import type { AppNotification, ChargeSession, Page, TodayChecklists, WalletStats } from "./types";
+import type { AppNotification, ChargeSession, ManualChargeSession, Page, TodayChecklists, WalletStats } from "./types";
 
 export const USERNAME_RE = /^[a-zA-Z0-9_.]{3,50}$/;
 
@@ -389,6 +389,47 @@ export function useStartCharge() {
       // The wallet was debited and a history row was written: refresh everything that shows either.
       for (const key of ["wallet-stats", "charge-stats", "charge-sessions"]) void queryClient.invalidateQueries({ queryKey: [key] });
     },
+  });
+}
+
+/** Pays an operator-priced (manual charger) session. */
+export function useConfirmCharge() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { sessionId: string; amount: number }) => api.confirmCharge(v.sessionId, v.amount),
+    onSuccess: (result) => putWalletBalance(queryClient, result.remaining_balance),
+    onSettled: () => {
+      for (const key of ["wallet-stats", "charge-stats", "charge-sessions"]) void queryClient.invalidateQueries({ queryKey: [key] });
+    },
+  });
+}
+
+/** receivedAt anchors the 5-minute pay window to when the price reached this phone. */
+export type ManualQuoteCache = { session: ManualChargeSession; receivedAt: number };
+const isGone = (error: unknown) => error instanceof ApiError && [403, 404].includes(error.statusCode);
+export const isOperatorPriced = (s: ManualChargeSession | null | undefined) => s?.status?.toUpperCase() === "QUOTED" && s.quoted_amount != null;
+
+/**
+ * Waits for the operator's price on a manual charger. The `charge_session.quoted` socket event writes into this
+ * cache and usually arrives first; polling every few seconds is the fallback, and stops once it is priced.
+ */
+export function useManualChargeSession(sessionId: string) {
+  const queryClient = useQueryClient();
+  return useQuery({
+    queryKey: ["manual-session", sessionId],
+    queryFn: async (): Promise<ManualQuoteCache> => {
+      const session = await api.manualChargeSession(sessionId);
+      const old = queryClient.getQueryData<ManualQuoteCache>(["manual-session", sessionId]);
+      // Keep the first time we saw this price, so refetches don't stretch the countdown.
+      const samePrice = old && isOperatorPriced(old.session) && old.session.expires_at === session.expires_at;
+      if (isOperatorPriced(session) && !samePrice) void queryClient.invalidateQueries({ queryKey: ["wallet-stats"] });
+      return { session, receivedAt: samePrice ? old.receivedAt : Date.now() };
+    },
+    enabled: Boolean(sessionId),
+    // 404 = paid, expired or not ours: nothing to retry. Anything else (a blip) keeps polling.
+    retry: (count, error) => !isGone(error) && count < 2,
+    refetchInterval: (query) => (isGone(query.state.error) || isOperatorPriced(query.state.data?.session) ? false : 4000),
+    refetchOnWindowFocus: (query) => !isOperatorPriced(query.state.data?.session),
   });
 }
 

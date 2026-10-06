@@ -213,7 +213,12 @@ export type ChargerInfo = {
 export type ChargeQuote = {
   charger_id: string;
   connector_id: string;
+  fleet_driver?: boolean;
   quoted_amount: number;
+  /** Energy a full charge needs, in kWh. */
+  kwh_needed?: number | null;
+  /** This charger's own ₦/kWh price, which can differ from the platform rate. */
+  price_per_kwh?: number | null;
   currency: string;
   sub_wallet_balance: number;
   soc_percent: number | null;
@@ -222,15 +227,24 @@ export type ChargeQuote = {
 
 export type ChargeStarted = { session_id: string; debited: number; remaining_balance: number };
 
+/** STARTED while the car charges; the server records how it ended once the provider reports back. */
+export type ChargeSessionStatus = "STARTED" | "COMPLETED" | "INTERRUPTED";
+
 export type ChargeSession = {
   id: string;
   created_at: string;
+  updated_at?: string;
   lotgrids_session_id: string | null;
   charger_id: string;
   connector_id: string;
   amount: number;
   remaining_balance: number | null;
   energy_kwh: number | null;
+  status?: ChargeSessionStatus | null;
+  /** Naira of energy the charger actually delivered, once the session has ended. */
+  actual_dispensed_value?: number | null;
+  /** Naira returned to the wallet because the charger delivered less than was paid. */
+  refund_amount?: number | null;
 };
 
 export type WalletAllocation = {

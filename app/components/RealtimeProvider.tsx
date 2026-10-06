@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { notificationTarget } from "../lib/notification-link";
 import { putChecklist } from "../lib/queries";
 import { playNotificationSound, unlockSound } from "../lib/sound";
-import type { AppNotification, DailyChecklist } from "../lib/types";
+import type { AppNotification, ChargeSession, DailyChecklist } from "../lib/types";
 
 export type RealtimeStatus = "connecting" | "live" | "offline";
 
@@ -129,6 +129,14 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
           refreshProfile();
           return invalidate(queryClient, "wallet-stats", "wallet-allocations", "wallet-allocation");
 
+        case "charge_session.updated": {
+          // A session ended (any refund is already on the wallet). The driver is also sent a notification for it.
+          const session = data as ChargeSession;
+          if (session?.lotgrids_session_id) queryClient.setQueryData(["charge-session", "live", session.lotgrids_session_id], session);
+          refreshProfile();
+          return invalidate(queryClient, "wallet-stats", "charge-sessions", "charge-stats");
+        }
+
         case "dva_transaction.created":
           return invalidate(queryClient, "dva-stats", "dva-transactions");
 
@@ -209,7 +217,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
         void connect();
       } else {
         // Coming back to the app: pick up anything that changed, including automatic charge refunds.
-        invalidate(queryClient, "daily-checklists-today", "pickup-requests-mine", "notifications-unread", "wallet-stats");
+        invalidate(queryClient, "daily-checklists-today", "pickup-requests-mine", "notifications-unread", "wallet-stats", "charge-sessions", "charge-session");
       }
     };
 

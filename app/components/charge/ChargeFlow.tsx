@@ -20,23 +20,25 @@ import {
   Zap,
 } from "lucide-react";
 import { toast } from "sonner";
-import { api, ApiError } from "../../lib/api";
-import { chargeError, isUncertain } from "../../lib/charge-errors";
+import { api } from "../../lib/api";
+import { chargeError, isStatus, isUncertain } from "../../lib/charge-errors";
 import { kwh, lagosDate, naira } from "../../lib/format";
 import { resolveDateFilter } from "../../lib/date-range";
 import {
   CHARGES_PAGE_SIZE,
   CREDITS_PAGE_SIZE,
+  isCharging,
   useChargeQuote,
   useChargerConnectors,
   useChargeSessions,
   useChargeStats,
+  useLiveChargeSession,
   useStartCharge,
   useWalletAllocations,
   useWalletStats,
 } from "../../lib/queries";
 import { chargerIdFrom } from "../../lib/charger-code";
-import type { ChargeQuote, ChargerInfo, ChargeStarted, WalletAllocation } from "../../lib/types";
+import type { ChargeQuote, ChargerInfo, ChargeSession, ChargeSessionStatus, ChargeStarted, WalletAllocation } from "../../lib/types";
 import { Pagination } from "../Pagination";
 import { Spinner } from "../Ui";
 import { QrScanner } from "./QrScanner";
@@ -47,11 +49,14 @@ type Step =
   | { k: "scan" }
   | { k: "connectors"; charger: ChargerInfo }
   | { k: "plug"; charger: ChargerInfo; connectorId: string }
-  | { k: "amount"; charger: ChargerInfo; connectorId: string; quote: ChargeQuote; quotedAt: number }
+  | { k: "amount"; charger: ChargerInfo; connectorId: string; quote: ChargeQuote; quotedAt: number; notice?: string }
   | { k: "topup"; suggested?: number; back: Step }
-  | { k: "done"; result: ChargeStarted; chargerId: string; connectorId: string };
+  | { k: "done"; result: ChargeStarted; charger: ChargerInfo; connectorId: string; startedAt: number };
 
 const STALE_QUOTE_MS = 3 * 60_000;
+/** A row still marked STARTED after this long is almost certainly stuck; don't advertise it as live. */
+const LIVE_WINDOW_MS = 12 * 60 * 60_000;
+const NO_VEHICLE = "You can't charge yet because you don't have a vehicle assigned to you. Once an admin assigns you a vehicle, you'll be able to charge.";
 
 /** Ticks every 15s so "expires soon" banners drop off by themselves. */
 function useNow() {
@@ -84,6 +89,48 @@ const CREDIT_STATUS: Record<WalletAllocation["status"], { label: string; tone: s
   EXPIRED: { label: "Expired", tone: "idle" },
   CANCELLED: { label: "Cancelled", tone: "idle" },
 };
+
+const CHARGE_STATUS: Record<ChargeSessionStatus, { label: string; tone: string }> = {
+  STARTED: { label: "Charging", tone: "live" },
+  COMPLETED: { label: "Completed", tone: "ok" },
+  INTERRUPTED: { label: "Stopped early", tone: "warn" },
+};
+
+const chargerName = (id: string) => id.split("/").pop() || id;
+
+function ChargeRow({ s }: { s: ChargeSession }) {
+  const status = s.status ? CHARGE_STATUS[s.status] : null;
+  const refund = s.refund_amount ?? 0;
+  return (
+    <li className="tx-row static">
+      <span className="tx-avatar ch-bolt">
+        <Zap size={17} />
+      </span>
+      <span className="tx-main">
+        <strong>
+          {chargerName(s.charger_id)} · Plug {s.connector_id}
+        </strong>
+        <small>
+          {when(s.created_at)}
+          {status ? (
+            <>
+              {" · "}
+              <span className={`ch-state ${status.tone}`}>{status.label}</span>
+            </>
+          ) : null}
+        </small>
+      </span>
+      <span className="tx-side">
+        <b className="out">−{naira(s.amount)}</b>
+        {refund > 0 ? (
+          <small className="ch-refund">+{naira(refund)} refunded</small>
+        ) : (
+          <small>{s.energy_kwh != null ? `≈ ${s.energy_kwh.toFixed(2)} kWh` : "—"}</small>
+        )}
+      </span>
+    </li>
+  );
+}
 
 function History() {
   const [tab, setTab] = useState<"charges" | "credits">("charges");
@@ -129,21 +176,7 @@ function History() {
         <div className={`tx-body ${list.isPlaceholderData ? "loading" : ""}`}>
           <ul className="tx-list">
             {tab === "charges"
-              ? charges.data?.items.map((s) => (
-                  <li className="tx-row static" key={s.id}>
-                    <span className="tx-avatar ch-bolt">
-                      <Zap size={17} />
-                    </span>
-                    <span className="tx-main">
-                      <strong>{s.charger_id.split("/").pop() ?? s.charger_id} · Plug {s.connector_id}</strong>
-                      <small>{when(s.created_at)}</small>
-                    </span>
-                    <span className="tx-side">
-                      <b className="out">−{naira(s.amount)}</b>
-                      <small>{s.energy_kwh != null ? `≈ ${s.energy_kwh.toFixed(2)} kWh` : "—"}</small>
-                    </span>
-                  </li>
-                ))
+              ? charges.data?.items.map((s) => <ChargeRow key={s.id} s={s} />)
               : credits.data?.items.map((a) => {
                   const status = CREDIT_STATUS[a.status];
                   return (
@@ -182,6 +215,7 @@ function Home({ hasVehicle, onScan, onTopup }: { hasVehicle: boolean; onScan: ()
   const wallet = useWalletStats();
   const month = useChargeStats(resolveDateFilter({ preset: "month" }, lagosDate()));
   const recent = useWalletAllocations(1);
+  const latestCharge = useChargeSessions(1).data?.items[0];
   const now = useNow();
   const balance = wallet.data?.wallet_balance ?? session?.profile?.user.ev_wallet_balance ?? 0;
   const empty = balance <= 0;
@@ -190,6 +224,8 @@ function Home({ hasVehicle, onScan, onTopup }: { hasVehicle: boolean; onScan: ()
     (a) => a.status === "PENDING_PAYMENT" && (!a.checkout_expires_at || Date.parse(a.checkout_expires_at) > now),
   );
   const crediting = recent.data?.items.find((a) => a.status === "AWAITING_ALLOCATION");
+  const charging =
+    latestCharge?.status === "STARTED" && now - Date.parse(latestCharge.created_at) < LIVE_WINDOW_MS ? latestCharge : null;
 
   return (
     <>
@@ -208,7 +244,8 @@ function Home({ hasVehicle, onScan, onTopup }: { hasVehicle: boolean; onScan: ()
         <p>{wallet.data ? <>Enough for about <b>{kwh(wallet.data.wallet_balance_kwh)} kWh</b> of charging</> : "Loading your balance…"}</p>
 
         <div className="ch-actions">
-          <button className={empty ? "ch-btn alt" : "ch-btn"} disabled={!hasVehicle} type="button" onClick={onScan}>
+          {/* Looking up a charger doesn't need a vehicle; pricing and paying do, and the server has the final say. */}
+          <button className={empty ? "ch-btn alt" : "ch-btn"} type="button" onClick={onScan}>
             <QrCode size={20} /> Charge my car
           </button>
           <button className={empty ? "ch-btn" : "ch-btn alt"} disabled={!hasVehicle} type="button" onClick={onTopup}>
@@ -217,6 +254,20 @@ function Home({ hasVehicle, onScan, onTopup }: { hasVehicle: boolean; onScan: ()
         </div>
         {empty && hasVehicle ? <small className="ch-hint">Your wallet is empty. Add credit to start charging.</small> : null}
       </section>
+
+      {charging ? (
+        <div className="tu-open static ch-live">
+          <span className="ch-live-icon">
+            <Zap size={17} fill="currentColor" />
+          </span>
+          <span>
+            <b>
+              Charging at {chargerName(charging.charger_id)} · Plug {charging.connector_id}
+            </b>
+            <small>{naira(charging.amount)} paid. We&apos;ll let you know when it finishes; unused credit comes back automatically.</small>
+          </span>
+        </div>
+      ) : null}
 
       {openTopup ? (
         <button className="tu-open" type="button" onClick={onTopup}>
@@ -238,7 +289,7 @@ function Home({ hasVehicle, onScan, onTopup }: { hasVehicle: boolean; onScan: ()
 
       {!hasVehicle ? (
         <div className="cl-notice">
-          <Car size={16} /> You can charge and add credit once an admin assigns you a vehicle. We&apos;ll let you know.
+          <Car size={16} /> You can look up a charger now. Charging and adding credit unlock once an admin assigns you a vehicle. We&apos;ll let you know.
         </div>
       ) : (
         <ol className="ch-how" aria-label="How charging works">
@@ -447,16 +498,44 @@ function PlugIn({
   connectorId,
   pending,
   error,
+  blocked,
   onQuote,
   onBack,
+  onHome,
 }: {
   charger: ChargerInfo;
   connectorId: string;
   pending: boolean;
   error: string | null;
+  /** Why this driver can't be priced yet (no vehicle). The server's word wins, so "check again" stays available. */
+  blocked: string | null;
   onQuote: () => void;
   onBack: () => void;
+  onHome: () => void;
 }) {
+  if (blocked)
+    return (
+      <div className="cl-card cl-intro">
+        <Back onClick={onBack} />
+        <span className="cl-intro-icon">
+          <Car size={30} />
+        </span>
+        <h2>A vehicle is needed to charge</h2>
+        <p>{blocked}</p>
+        {error && error !== blocked ? (
+          <div className="cl-notice bad" role="alert">
+            <CircleAlert size={16} /> {error}
+          </div>
+        ) : null}
+        <button className="primary-button" type="button" onClick={onHome}>
+          Back to wallet
+        </button>
+        <button className="ghost-button" disabled={pending} type="button" onClick={onQuote}>
+          {pending ? <Spinner /> : <RefreshCw size={18} />} Check again
+        </button>
+      </div>
+    );
+
   return (
     <div className="cl-card cl-intro">
       <Back onClick={onBack} />
@@ -488,10 +567,14 @@ function AmountStep({
   connectorId,
   quote,
   quotedAt,
+  notice,
+  outerError,
   ratePerKwh,
   onRequote,
   requoting,
   onStarted,
+  onInsufficient,
+  onTaken,
   onTopup,
   onBack,
 }: {
@@ -499,10 +582,18 @@ function AmountStep({
   connectorId: string;
   quote: ChargeQuote;
   quotedAt: number;
+  /** Shown above everything, e.g. why the price was just refreshed. */
+  notice?: string;
+  /** A failed re-quote, reported by the parent. */
+  outerError: string | null;
   ratePerKwh: number | null;
   onRequote: () => void;
   requoting: boolean;
   onStarted: (result: ChargeStarted) => void;
+  /** The wallet couldn't cover the amount (402): re-quote so the balance is fresh. */
+  onInsufficient: (amount: number, error: unknown) => void;
+  /** Someone else took the plug (409). */
+  onTaken: (message: string) => void;
   /** Opens the top-up flow, suggesting how much is missing. */
   onTopup: (suggested: number) => void;
   onBack: () => void;
@@ -517,6 +608,8 @@ function AmountStep({
   const max = Math.min(full, balance);
   const canFull = balance >= full;
   const [amount, setAmount] = useState(max);
+  // The charger's own price is what this session is billed at; the platform rate is only a fallback.
+  const rate = quote.price_per_kwh || ratePerKwh;
 
   // A quote isn't a reservation: after a few minutes ask for a fresh price.
   const [now, setNow] = useState(() => Date.now());
@@ -539,13 +632,24 @@ function AmountStep({
     try {
       const result = await start.mutateAsync({ chargerId: charger.charger_id, connectorId, amount });
       onStarted(result);
+      return;
     } catch (e) {
+      if (isStatus(e, 402) || isStatus(e, 409)) {
+        sent.current = false; // nothing was debited; the parent takes it from here
+        return isStatus(e, 402) ? onInsufficient(amount, e) : onTaken(chargeError(e));
+      }
       if (isUncertain(e)) {
         // The answer may have been lost on the way back. Look before ever retrying.
         setChecking(true);
         try {
           const latest = (await api.chargeSessions(1, 1)).items[0];
-          if (latest && latest.amount === amount && Date.now() - Date.parse(latest.created_at) < 3 * 60_000) {
+          const ours =
+            latest &&
+            latest.amount === amount &&
+            latest.charger_id === charger.charger_id &&
+            latest.connector_id === connectorId &&
+            Date.now() - Date.parse(latest.created_at) < 3 * 60_000;
+          if (ours) {
             onStarted({ session_id: latest.lotgrids_session_id ?? "", debited: latest.amount, remaining_balance: latest.remaining_balance ?? balance - latest.amount });
             return;
           }
@@ -558,12 +662,13 @@ function AmountStep({
       } else {
         setError(chargeError(e));
       }
-      sent.current = false;
     }
+    sent.current = false;
   };
 
   const busy = start.isPending || checking;
   const soc = Math.max(0, Math.min(100, quote.soc_percent ?? 0));
+  const shown = error ?? outerError;
 
   return (
     <div className="cl-card ch-amount">
@@ -572,6 +677,12 @@ function AmountStep({
         <small>Step 3</small>
         <h2>Choose how much</h2>
       </div>
+
+      {notice ? (
+        <div className="cl-notice warn" role="status">
+          <Wallet size={16} /> {notice}
+        </div>
+      ) : null}
 
       <div className="ch-car">
         <div className="ch-soc" style={{ ["--soc" as string]: `${soc}%` }} aria-label={`Battery ${soc}%`}>
@@ -588,9 +699,18 @@ function AmountStep({
 
       <dl className="ch-lines">
         <div>
-          <dt>Full charge</dt>
+          <dt>
+            Full charge
+            {quote.kwh_needed ? <small>≈ {kwh(quote.kwh_needed)} kWh to full</small> : null}
+          </dt>
           <dd>{naira(full)}</dd>
         </div>
+        {quote.price_per_kwh ? (
+          <div>
+            <dt>Charger price</dt>
+            <dd>{naira(quote.price_per_kwh)} / kWh</dd>
+          </div>
+        ) : null}
         <div>
           <dt>Your wallet</dt>
           <dd className={canFull ? "" : "low"}>{naira(balance)}</dd>
@@ -607,7 +727,7 @@ function AmountStep({
             <strong className="ch-pick-amount">{naira(amount)}</strong>
             <small>
               {amount === full ? "Full charge" : "Partial charge"}
-              {ratePerKwh ? ` · ≈ ${kwh(amount / ratePerKwh)} kWh` : ""}
+              {rate ? ` · ≈ ${kwh(amount / rate)} kWh` : ""}
             </small>
           </div>
 
@@ -651,9 +771,9 @@ function AmountStep({
         </div>
       ) : null}
 
-      {error ? (
+      {shown ? (
         <div className="cl-notice bad" role="alert">
-          <CircleAlert size={16} /> {error}
+          <CircleAlert size={16} /> {shown}
         </div>
       ) : null}
 
@@ -666,9 +786,9 @@ function AmountStep({
           {requoting ? <Spinner /> : <RefreshCw size={19} />} Refresh price
         </button>
       ) : (
-        <button className="primary-button" disabled={busy || amount < 1} type="button" onClick={() => void submit()}>
-          {busy ? <Spinner /> : <Zap size={19} fill="currentColor" />}{" "}
-          {checking ? "Confirming…" : busy ? "Starting…" : `Pay ${naira(amount)} & start charging`}
+        <button className="primary-button" disabled={busy || requoting || amount < 1} type="button" onClick={() => void submit()}>
+          {busy || requoting ? <Spinner /> : <Zap size={19} fill="currentColor" />}{" "}
+          {checking ? "Confirming…" : requoting ? "Checking your balance…" : busy ? "Starting…" : `Pay ${naira(amount)} & start charging`}
         </button>
       )}
       <small className="cl-fine">The amount is taken from your wallet. If the charger delivers less, the difference is refunded automatically.</small>
@@ -677,28 +797,75 @@ function AmountStep({
 }
 
 /* ---------------------------------------------------------------- */
-/* Started                                                           */
+/* Started, then followed live until it ends                         */
 /* ---------------------------------------------------------------- */
-function Done({ result, onDone }: { result: ChargeStarted; onDone: () => void }) {
+function Done({
+  result,
+  charger,
+  connectorId,
+  startedAt,
+  onDone,
+}: {
+  result: ChargeStarted;
+  charger: ChargerInfo;
+  connectorId: string;
+  startedAt: number;
+  onDone: () => void;
+}) {
+  const live = useLiveChargeSession(result.session_id, startedAt);
+  const wallet = useWalletStats();
+  const session = live.data ?? null;
+  const ended = session != null && !isCharging(session);
+  const stopped = session?.status === "INTERRUPTED";
+  const refund = session?.refund_amount ?? 0;
+  const used = session?.actual_dispensed_value;
+  const place = `Plug ${connectorId} · ${charger.location_name ?? chargerName(charger.charger_id)}`;
+
+  const title = !ended ? "Charging started" : stopped ? "Charging stopped early" : "Charging complete";
+  const message = !ended
+    ? `Your car is charging at ${place}. You can leave this screen; we'll let you know when it finishes.`
+    : refund > 0
+      ? `${naira(refund)} of unused credit went back to your wallet.`
+      : stopped
+        ? "The charger ended the session before it finished."
+        : "Your car got everything you paid for.";
+
   return (
     <div className="cl-flow">
-      <section className="cl-card cl-done">
-        <span className="cl-done-icon">
-          <Zap size={30} fill="currentColor" />
+      <section className={`cl-card cl-done ${!ended ? "live" : stopped ? "warn" : ""}`} aria-live="polite">
+        <span className="cl-done-icon" key={session?.status ?? "live"}>
+          {!ended ? <Zap size={30} fill="currentColor" /> : stopped ? <CircleAlert size={30} /> : <Check size={30} strokeWidth={3} />}
         </span>
-        <h2>Charging started</h2>
-        <p>Your car will begin charging in a moment.</p>
+        <h2>{title}</h2>
+        <p>{message}</p>
+        {!ended ? (
+          <span className="ch-live-tag">
+            <i /> Live
+          </span>
+        ) : null}
       </section>
 
       <section className="cl-card">
         <dl className="ch-lines">
           <div>
-            <dt>Taken from wallet</dt>
+            <dt>Paid from wallet</dt>
             <dd>{naira(result.debited)}</dd>
           </div>
+          {ended && used != null ? (
+            <div>
+              <dt>Energy delivered</dt>
+              <dd>{naira(used)}</dd>
+            </div>
+          ) : null}
+          {refund > 0 ? (
+            <div>
+              <dt>Refunded</dt>
+              <dd className="ch-refund">+{naira(refund)}</dd>
+            </div>
+          ) : null}
           <div>
             <dt>Wallet balance</dt>
-            <dd>{naira(result.remaining_balance)}</dd>
+            <dd>{naira(wallet.data?.wallet_balance ?? result.remaining_balance)}</dd>
           </div>
           {result.session_id ? (
             <div>
@@ -719,11 +886,15 @@ function Done({ result, onDone }: { result: ChargeStarted; onDone: () => void })
             </div>
           ) : null}
         </dl>
-        <p className="cl-tip">If the charger delivers less than you paid for, the difference goes back to your wallet automatically. Keep the session ID for support.</p>
+        <p className="cl-tip">
+          {ended
+            ? "This charge is in your history. Keep the session ID if you need to contact support."
+            : "If the charger delivers less than you paid for, the difference goes back to your wallet automatically. Keep the session ID for support."}
+        </p>
       </section>
 
       <button className="primary-button" type="button" onClick={onDone}>
-        Done
+        {ended ? "Done" : "Back to wallet"}
       </button>
     </div>
   );
@@ -739,6 +910,8 @@ export function ChargeFlow() {
   const wallet = useWalletStats();
   const [step, setStep] = useState<Step>({ k: "home" });
   const [error, setError] = useState<string | null>(null);
+  // Set by a 400 from the server; cleared as soon as a quote goes through.
+  const [blocked, setBlocked] = useState<string | null>(null);
   const connectors = useChargerConnectors();
   const quoteMutation = useChargeQuote();
 
@@ -753,6 +926,20 @@ export function ChargeFlow() {
     connectors.mutate(chargerId.trim(), {
       onSuccess: (charger) => go({ k: "connectors", charger }),
       onError: (e) => setError(chargeError(e)),
+    });
+  };
+
+  /** Someone else took the plug: show the fresh availability with the reason on top. */
+  const backToConnectors = (charger: ChargerInfo, message: string) => {
+    connectors.mutate(charger.charger_id, {
+      onSuccess: (fresh) => {
+        go({ k: "connectors", charger: fresh });
+        setError(message);
+      },
+      onError: () => {
+        go({ k: "connectors", charger });
+        setError(message);
+      },
     });
   };
 
@@ -792,24 +979,22 @@ export function ChargeFlow() {
       />
     );
 
-  const quote = (charger: ChargerInfo, connectorId: string) => {
+  const quote = (charger: ChargerInfo, connectorId: string, notice?: string, fallbackError?: string) => {
     setError(null);
     quoteMutation.mutate(
       { chargerId: charger.charger_id, connectorId },
       {
-        onSuccess: (result) => go({ k: "amount", charger, connectorId, quote: result, quotedAt: Date.now() }),
+        onSuccess: (result) => {
+          setBlocked(null);
+          go({ k: "amount", charger, connectorId, quote: result, quotedAt: Date.now(), notice });
+        },
         onError: (e) => {
-          const message = chargeError(e);
-          if (e instanceof ApiError && e.statusCode === 409) {
-            // Someone else got the plug: show the fresh availability.
-            connectors.mutate(charger.charger_id, {
-              onSuccess: (fresh) => {
-                setStep({ k: "connectors", charger: fresh });
-                setError(message);
-              },
-              onError: () => setError(message),
-            });
-          } else setError(message);
+          if (isStatus(e, 409)) return backToConnectors(charger, chargeError(e));
+          if (isStatus(e, 400)) {
+            setBlocked(chargeError(e));
+            return go({ k: "plug", charger, connectorId });
+          }
+          setError(fallbackError ?? chargeError(e));
         },
       },
     );
@@ -818,11 +1003,13 @@ export function ChargeFlow() {
   if (step.k === "plug")
     return (
       <PlugIn
+        blocked={blocked ?? (hasVehicle ? null : NO_VEHICLE)}
         charger={step.charger}
         connectorId={step.connectorId}
         error={error}
         pending={quoteMutation.isPending}
         onBack={() => go({ k: "connectors", charger: step.charger })}
+        onHome={() => go({ k: "home" })}
         onQuote={() => quote(step.charger, step.connectorId)}
       />
     );
@@ -834,17 +1021,29 @@ export function ChargeFlow() {
         key={step.quotedAt}
         charger={step.charger}
         connectorId={step.connectorId}
+        notice={step.notice}
+        outerError={error}
         quote={step.quote}
         quotedAt={step.quotedAt}
         ratePerKwh={wallet.data?.current_rate_per_kwh ?? null}
         requoting={quoteMutation.isPending}
         onBack={() => go({ k: "connectors", charger: step.charger })}
+        onInsufficient={(amount, e) =>
+          // The balance moved since the quote. Re-quote so the slider and buttons match what's really there.
+          quote(
+            step.charger,
+            step.connectorId,
+            `Your wallet couldn't cover ${naira(amount)}, so we've refreshed your balance. Pick an amount you can cover, or add credit.`,
+            chargeError(e),
+          )
+        }
         onRequote={() => quote(step.charger, step.connectorId)}
-        onStarted={(result) => go({ k: "done", result, chargerId: step.charger.charger_id, connectorId: step.connectorId })}
+        onStarted={(result) => go({ k: "done", result, charger: step.charger, connectorId: step.connectorId, startedAt: Date.now() })}
+        onTaken={(message) => backToConnectors(step.charger, message)}
         onTopup={(suggested) => go({ k: "topup", suggested, back: step })}
       />
     );
 
   if (step.k !== "done") return null;
-  return <Done result={step.result} onDone={() => go({ k: "home" })} />;
+  return <Done charger={step.charger} connectorId={step.connectorId} result={step.result} startedAt={step.startedAt} onDone={() => go({ k: "home" })} />;
 }

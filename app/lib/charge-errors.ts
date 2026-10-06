@@ -1,8 +1,8 @@
 import { ApiError } from "./api";
 
 /**
- * Driver-friendly copy for charging failures. The backend's 402/502/503 text is written for admins and
- * engineers, so those are replaced rather than shown.
+ * Driver-friendly copy for charging failures. The 400 (no vehicle) and 402 (wallet too low) messages are written
+ * for drivers and shown as they are; 502/503 text comes from the provider or ops, so it is replaced.
  */
 export function chargeError(error: unknown): string {
   if (!(error instanceof ApiError)) return "Something went wrong. Please try again.";
@@ -12,7 +12,7 @@ export function chargeError(error: unknown): string {
     case 400:
       return error.message; // "no vehicle assigned yet" is written for drivers
     case 402:
-      return "We couldn't start this charge right now. Please try again or contact support.";
+      return error.message || "Your EV wallet balance isn't enough for this amount. Choose a smaller amount, or top up your wallet.";
     case 404:
       return "We couldn't find that charger. Scan the code again.";
     case 409:
@@ -20,12 +20,15 @@ export function chargeError(error: unknown): string {
     case 422:
       return "That doesn't look like a valid charger code.";
     case 502:
-    case 503:
       return "We couldn't reach the charger. Make sure your vehicle is plugged in and try again.";
+    case 503:
+      return "Charging isn't available right now. Please try again later or contact support.";
     default:
       return "Something went wrong. Please try again.";
   }
 }
+
+export const isStatus = (error: unknown, status: number) => error instanceof ApiError && error.statusCode === status;
 
 /** A start that may or may not have gone through: no response at all, or the provider timing out. */
 export const isUncertain = (error: unknown) => error instanceof ApiError && [0, 502, 504].includes(error.statusCode);

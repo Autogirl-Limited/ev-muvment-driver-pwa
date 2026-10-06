@@ -44,6 +44,7 @@ const PATTERNS: [RegExp, { methods: string[]; auth?: boolean }][] = [
   [new RegExp(`^daily-checklists/${ID}/dashboard$`), { methods: ["PATCH"], auth: true }],
   [new RegExp(`^notifications/${ID}/read$`), { methods: ["PATCH"], auth: true }],
   [new RegExp(`^wallet-allocations/${ID}$`), { methods: ["GET"], auth: true }],
+  [new RegExp(`^charge-sessions/${ID}$`), { methods: ["GET"], auth: true }],
 ];
 
 const fail = (status: number, message: string) =>

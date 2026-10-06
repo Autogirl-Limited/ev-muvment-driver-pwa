@@ -6,7 +6,7 @@ import { signIn, signOut, useSession } from "next-auth/react";
 import { api, ApiError, type DateRange } from "./api";
 import { getPosition } from "./geo";
 import type { ChecklistPhaseName, DailyChecklist, DashboardReading, PickupRequestInput } from "./types";
-import type { AppNotification, Page, TodayChecklists } from "./types";
+import type { AppNotification, ChargeSession, Page, TodayChecklists, WalletStats } from "./types";
 
 export const USERNAME_RE = /^[a-zA-Z0-9_.]{3,50}$/;
 
@@ -364,17 +364,64 @@ export function useChargeSessions(page: number) {
 
 export const useChargerConnectors = () => useMutation({ mutationFn: (chargerId: string) => api.chargerConnectors(chargerId) });
 
-export const useChargeQuote = () =>
-  useMutation({ mutationFn: (v: { chargerId: string; connectorId: string }) => api.quoteCharge(v.chargerId, v.connectorId) });
+/** Shows a balance the server just told us about straight away, while the full stats reload behind it. */
+function putWalletBalance(queryClient: QueryClient, balance: number) {
+  queryClient.setQueryData<WalletStats | null>(["wallet-stats"], (old) =>
+    old ? { ...old, wallet_balance: balance, wallet_balance_kwh: old.current_rate_per_kwh ? balance / old.current_rate_per_kwh : old.wallet_balance_kwh } : old,
+  );
+}
+
+export function useChargeQuote() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { chargerId: string; connectorId: string }) => api.quoteCharge(v.chargerId, v.connectorId),
+    // The quote carries the live wallet balance; keep the rest of the app in step with it.
+    onSuccess: (quote) => putWalletBalance(queryClient, quote.sub_wallet_balance),
+  });
+}
 
 export function useStartCharge() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (v: { chargerId: string; connectorId: string; amount: number }) => api.startCharge(v.chargerId, v.connectorId, v.amount),
+    onSuccess: (result) => putWalletBalance(queryClient, result.remaining_balance),
     onSettled: () => {
       // The wallet was debited and a history row was written: refresh everything that shows either.
       for (const key of ["wallet-stats", "charge-stats", "charge-sessions"]) void queryClient.invalidateQueries({ queryKey: [key] });
     },
+  });
+}
+
+const LIVE_POLL = 10_000;
+export const isCharging = (s: Pick<ChargeSession, "status"> | null | undefined) => !s?.status || s.status === "STARTED";
+
+/**
+ * Follows a session from "started" to how it ended. The start response only has the provider's session id, so
+ * the history row is found first, then re-read until it leaves STARTED. The `charge_session.updated` socket
+ * event writes into the same cache and usually gets there first; polling is the safety net.
+ */
+export function useLiveChargeSession(providerSessionId: string, startedAt: number) {
+  const queryClient = useQueryClient();
+  return useQuery({
+    queryKey: ["charge-session", "live", providerSessionId],
+    queryFn: async (): Promise<ChargeSession | null> => {
+      const known = queryClient.getQueryData<ChargeSession | null>(["charge-session", "live", providerSessionId]);
+      const session = known
+        ? await api.chargeSession(known.id)
+        : ((await api.chargeSessions(1, 5)).items.find((s) => s.lotgrids_session_id === providerSessionId) ?? null);
+      if (known && known.status !== session?.status) {
+        // It just ended: a refund may have landed and the history row changed.
+        for (const key of ["wallet-stats", "charge-stats", "charge-sessions"]) void queryClient.invalidateQueries({ queryKey: [key] });
+      }
+      return session;
+    },
+    enabled: Boolean(providerSessionId),
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      if (data === null) return Date.now() - startedAt < 2 * 60_000 ? 4000 : false; // the row is written best-effort
+      return isCharging(data) ? LIVE_POLL : false;
+    },
+    refetchIntervalInBackground: false,
   });
 }
 

@@ -172,6 +172,11 @@ export const api = {
     return (await request<Page<ChargeSession>>(`/charge-sessions/mine?${params}`)).data as Page<ChargeSession>;
   },
 
+  /** Our own record id (not the provider's session id). */
+  async chargeSession(id: string) {
+    return (await request<ChargeSession>(`/charge-sessions/${id}`)).data as ChargeSession;
+  },
+
   // ---- Notifications ----
   async notifications(page: number, unreadOnly: boolean) {
     const params = new URLSearchParams({ page: String(page), page_size: "20" });

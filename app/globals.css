@@ -5085,3 +5085,116 @@ dialog.modal::backdrop {
   flex: none;
   margin-left: -0.3rem;
 }
+
+/* ------------------------------------------------------------------ */
+/* Charge session outcome: live, completed, stopped early, refunds     */
+/* ------------------------------------------------------------------ */
+.cl-notice.warn {
+  background: color-mix(in srgb, #e08a10 14%, var(--surface));
+  color: #b56a00;
+}
+
+.ch-lines dt small {
+  display: block;
+  margin-top: 0.1rem;
+  color: var(--subtle);
+  font-size: 0.75rem;
+}
+
+.ch-refund,
+.tx-side small.ch-refund,
+.ch-lines dd.ch-refund {
+  color: var(--success);
+  font-weight: 700;
+}
+
+.ch-state {
+  font-weight: 650;
+}
+
+.ch-state.ok {
+  color: var(--success);
+}
+
+.ch-state.warn {
+  color: #b56a00;
+}
+
+.ch-state.live {
+  color: var(--primary);
+}
+
+.ch-live {
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--line));
+  background: var(--primary-soft);
+}
+
+.ch-live-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--on-primary);
+  animation: ch-ring 1.8s ease-out infinite;
+}
+
+.cl-done.live {
+  background: linear-gradient(155deg, var(--hero-from), var(--hero-to));
+}
+
+.cl-done.live .cl-done-icon {
+  color: var(--hero-from);
+  animation:
+    pop 500ms var(--ease) both,
+    ch-ring 1.8s 500ms ease-out infinite;
+}
+
+.cl-done.warn {
+  background: linear-gradient(155deg, #e08a10, #8a3d05);
+}
+
+.cl-done.warn .cl-done-icon {
+  color: #b56a00;
+}
+
+.ch-live-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.ch-live-tag i {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: #6dffb5;
+  animation: pulse 1.4s ease-out infinite;
+}
+
+@keyframes ch-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.55), 0 0 0 0 color-mix(in srgb, var(--primary) 45%, transparent);
+  }
+  80%,
+  100% {
+    box-shadow: 0 0 0 12px transparent, 0 0 0 12px transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ch-live-icon,
+  .cl-done.live .cl-done-icon,
+  .ch-live-tag i {
+    animation: none;
+  }
+}

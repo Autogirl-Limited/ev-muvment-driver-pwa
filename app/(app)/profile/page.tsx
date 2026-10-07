@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { AtSign, LogOut, Mail, Phone, User } from "lucide-react";
+import { AtSign, ChevronRight, LogOut, Mail, Phone, ShieldCheck, User } from "lucide-react";
 import { LogoutDialog } from "../../components/LogoutDialog";
 
 export default function ProfilePage() {
@@ -39,6 +40,17 @@ export default function ProfilePage() {
               </div>
             </div>
           ))}
+        </section>
+
+        <section className="panel list-panel">
+          <Link className="list-row sec-link" href="/profile/security">
+            <span className="list-icon"><ShieldCheck size={18} /></span>
+            <div>
+              <small>Sign-in security</small>
+              <strong>{user.totp_enabled || user.two_factor_enabled ? "Two-step sign-in is on" : "Add a second sign-in step"}</strong>
+            </div>
+            <ChevronRight size={18} />
+          </Link>
         </section>
 
         <button className="ghost-button danger" type="button" onClick={() => setConfirmingLogout(true)}>

@@ -28,6 +28,39 @@ export type Vehicle = {
   drop_off_window?: { start_time: string; end_time: string } | null;
 };
 
+export type TwoFactorMethod = "EMAIL_OTP" | "TOTP";
+
+/** The sign-in error `code` that tells the login page to ask for a second factor. */
+export const TWO_FACTOR_REQUIRED = "two_factor_required";
+
+/** A sign-in waiting on a second factor. The challenge token itself never leaves the server. */
+export type LoginChallenge = {
+  /** The method to ask for now; for EMAIL_OTP the code has already been sent. */
+  method: TwoFactorMethod;
+  /** Every method the driver can finish with, current one first. */
+  available_methods: TwoFactorMethod[];
+};
+
+/** One entry of `GET /auth/2fa/methods`. */
+export type TwoFactorMethodOption = {
+  method: TwoFactorMethod;
+  label: string;
+  /** An admin offers it. If false, hide setup; turning it off is still allowed. */
+  is_available: boolean;
+  /** The driver has set it up and switched it on. */
+  is_enrolled: boolean;
+  /** Asked for first at sign-in. */
+  is_preferred: boolean;
+};
+
+export type TwoFactorMethods = {
+  /** What sign-in will actually ask for first; `null` means password only. */
+  preferred_method: TwoFactorMethod | null;
+  methods: TwoFactorMethodOption[];
+};
+
+export type TotpSetup = { secret: string; otpauth_url: string };
+
 export type LoginData = {
   status: "success";
   access_token: string;
@@ -46,6 +79,9 @@ export type LoginData = {
     phone_number: string | null;
     ev_wallet_balance: number;
     shift: boolean;
+    two_factor_enabled?: boolean;
+    totp_enabled?: boolean;
+    preferred_two_factor_method?: TwoFactorMethod | null;
     virtual_account?: VirtualAccount | null;
     vehicle?: Vehicle | null;
   };

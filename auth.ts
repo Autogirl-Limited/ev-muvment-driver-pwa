@@ -1,6 +1,7 @@
 import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import type { ApiEnvelope, DriverProfile, LoginData } from "./app/lib/types";
+import { TWO_FACTOR_REQUIRED, type ApiEnvelope, type DriverProfile, type LoginData, type TwoFactorMethod } from "./app/lib/types";
+import { clearLoginChallenge, readLoginChallenge, saveLoginChallenge } from "./app/lib/login-challenge";
 import { BACKEND_URL } from "./app/lib/server";
 
 declare module "next-auth" {
@@ -27,32 +28,71 @@ class LoginError extends CredentialsSignin {
   }
 }
 
+type LoginResponse =
+  | LoginData
+  | {
+      status: "two_factor_required";
+      two_factor_method: TwoFactorMethod;
+      available_two_factor_methods: TwoFactorMethod[] | null;
+      challenge_token: string;
+    };
+
+async function callBackend(path: string, body: unknown): Promise<LoginResponse> {
+  let response: Response;
+  try {
+    response = await fetch(`${BACKEND_URL}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      cache: "no-store",
+    });
+  } catch {
+    throw new LoginError("Unable to reach the server. Please try again.");
+  }
+  const payload = (await response.json().catch(() => null)) as ApiEnvelope<LoginResponse> | null;
+  if (!response.ok || !payload || payload.status === "error" || !payload.data) {
+    throw new LoginError(payload?.message || "Unable to sign in");
+  }
+  return payload.data;
+}
+
+/** Step 1: password. A second factor parks the challenge in a cookie and asks the page for a code. */
+async function passwordSignIn(identifier: unknown, password: unknown) {
+  const data = await callBackend("/auth/login", { identifier, password });
+  if (data.status === "two_factor_required") {
+    await saveLoginChallenge({
+      token: data.challenge_token,
+      method: data.two_factor_method,
+      available_methods: data.available_two_factor_methods ?? [data.two_factor_method],
+    });
+    throw new LoginError(TWO_FACTOR_REQUIRED);
+  }
+  await clearLoginChallenge();
+  return data;
+}
+
+/** Step 2: the code, checked against whichever method the challenge is currently on. */
+async function twoFactorSignIn(code: unknown) {
+  const challenge = await readLoginChallenge();
+  if (!challenge) throw new LoginError("Your verification expired. Please sign in again.");
+  const path = challenge.method === "TOTP" ? "/auth/login/verify-totp" : "/auth/login/verify-email-otp";
+  const data = await callBackend(path, { challenge_token: challenge.token, code });
+  if (data.status !== "success") throw new LoginError("Unable to sign in");
+  await clearLoginChallenge();
+  return data;
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
   session: { strategy: "jwt", maxAge: 60 * 60 * 24 * 30 },
   pages: { signIn: "/login" },
   providers: [
     Credentials({
-      credentials: { identifier: {}, password: {} },
+      credentials: { identifier: {}, password: {}, code: {} },
       async authorize(credentials) {
-        let response: Response;
-        try {
-          response = await fetch(`${BACKEND_URL}/auth/login`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ identifier: credentials?.identifier, password: credentials?.password }),
-            cache: "no-store",
-          });
-        } catch {
-          throw new LoginError("Unable to reach the server. Please try again.");
-        }
-
-        const payload = (await response.json().catch(() => null)) as ApiEnvelope<LoginData> | null;
-        if (!response.ok || !payload || payload.status === "error" || payload.data?.status !== "success") {
-          throw new LoginError(payload?.message || "Unable to sign in");
-        }
-
-        const data = payload.data;
+        const data = credentials?.code
+          ? await twoFactorSignIn(credentials.code)
+          : await passwordSignIn(credentials?.identifier, credentials?.password);
         return {
           id: data.user.id,
           name: `${data.user.first_name} ${data.user.last_name}`,

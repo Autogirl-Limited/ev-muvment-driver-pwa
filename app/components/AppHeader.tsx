@@ -16,11 +16,12 @@ const TITLES: Record<string, string> = {
   "/checklist/pick-up": "Pick-up checklist",
   "/checklist/drop-off": "Drop-off checklist",
   "/profile": "Profile",
+  "/profile/security": "Sign-in security",
   "/notifications": "Notifications",
 };
 
 /** Pages reached from the header rather than the tab bar get a back arrow. */
-const SUB_PAGES = new Set(["/profile", "/notifications", "/checklist/pick-up", "/checklist/drop-off"]);
+const SUB_PAGES = new Set(["/profile", "/profile/security", "/notifications", "/checklist/pick-up", "/checklist/drop-off"]);
 
 export function AppHeader() {
   const pathname = usePathname();

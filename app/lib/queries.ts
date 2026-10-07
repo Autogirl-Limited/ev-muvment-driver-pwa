@@ -5,7 +5,7 @@ import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClie
 import { signIn, signOut, useSession } from "next-auth/react";
 import { api, ApiError, type DateRange } from "./api";
 import { getPosition } from "./geo";
-import type { ChecklistPhaseName, DailyChecklist, DashboardReading, PickupRequestInput } from "./types";
+import { TWO_FACTOR_REQUIRED, type ChecklistPhaseName, type DailyChecklist, type DashboardReading, type LoginChallenge, type PickupRequestInput, type TwoFactorMethod } from "./types";
 import type { AppNotification, ChargeSession, ManualChargeSession, Page, TodayChecklists, WalletStats } from "./types";
 
 export const USERNAME_RE = /^[a-zA-Z0-9_.]{3,50}$/;
@@ -60,18 +60,93 @@ export const useResetPassword = () =>
       api.resetPassword(v.identifier, v.code, v.newPassword),
   });
 
+type SignInOutcome =
+  | { status: "signed-in"; session: Awaited<ReturnType<ReturnType<typeof useSession>["update"]>> }
+  | { status: "two-factor"; challenge: LoginChallenge };
+
+/** Step 1 of sign-in. Resolves with the session, or with the challenge when a second factor is needed. */
 export function useLogin() {
   const { update } = useSession();
   return useMutation({
-    mutationFn: async (v: { identifier: string; password: string }) => {
+    mutationFn: async (v: { identifier: string; password: string }): Promise<SignInOutcome> => {
       const result = await signIn("credentials", { ...v, redirect: false });
+      if (result?.code === TWO_FACTOR_REQUIRED) return { status: "two-factor", challenge: await api.loginChallenge() };
       if (!result || result.error) {
         const message = result?.code && result.code !== "credentials" ? result.code : "Invalid username or password.";
         throw new ApiError(401, message);
       }
       // Pull the fresh session into the provider so the next screen already knows who is signed in.
+      return { status: "signed-in", session: await update() };
+    },
+  });
+}
+
+/** Step 2 of sign-in: the code for whichever method the challenge is on. */
+export function useVerifyLoginCode() {
+  const { update } = useSession();
+  return useMutation({
+    mutationFn: async (code: string) => {
+      const result = await signIn("credentials", { code, redirect: false });
+      if (!result || result.error) {
+        const message = result?.code && result.code !== "credentials" ? result.code : "That code didn’t work. Try again.";
+        throw new ApiError(401, message);
+      }
       return update();
     },
+  });
+}
+
+/** "Use another method" and "Resend code" on the verification step. */
+export const useSwitchLoginMethod = () => useMutation({ mutationFn: (method: TwoFactorMethod) => api.switchLoginMethod(method) });
+
+// ---- Two-factor settings ----
+
+const TWO_FACTOR_KEY = ["two-factor-methods"];
+
+export function useTwoFactorMethods() {
+  const { status } = useSession();
+  return useQuery({ queryKey: TWO_FACTOR_KEY, queryFn: () => api.twoFactorMethods(), enabled: status === "authenticated", staleTime: 30_000 });
+}
+
+/** Re-reads the method list and the profile (its 2FA flags) after any setup or turn-off. */
+function useRefreshTwoFactor() {
+  const queryClient = useQueryClient();
+  const { update } = useSession();
+  return async () => {
+    await Promise.all([queryClient.invalidateQueries({ queryKey: TWO_FACTOR_KEY }), update({ refreshProfile: true })]);
+  };
+}
+
+export function useSetPreferredTwoFactorMethod() {
+  const queryClient = useQueryClient();
+  const { update } = useSession();
+  return useMutation({
+    mutationFn: (method: TwoFactorMethod | null) => api.setPreferredTwoFactorMethod(method),
+    onSuccess: (methods) => {
+      queryClient.setQueryData(TWO_FACTOR_KEY, methods);
+      void update({ refreshProfile: true });
+    },
+  });
+}
+
+export const useRequestEmailTwoFactor = () => useMutation({ mutationFn: () => api.requestEmailTwoFactor() });
+export const useSetupTotp = () => useMutation({ mutationFn: () => api.setupTotp() });
+
+export function useConfirmTwoFactor() {
+  const refresh = useRefreshTwoFactor();
+  return useMutation({
+    mutationFn: (v: { method: TwoFactorMethod; code: string }) =>
+      v.method === "TOTP" ? api.confirmTotp(v.code) : api.confirmEmailTwoFactor(v.code),
+    onSuccess: refresh,
+  });
+}
+
+export function useDisableTwoFactor() {
+  const refresh = useRefreshTwoFactor();
+  return useMutation({
+    mutationFn: (v: { method: TwoFactorMethod; password: string }) =>
+      v.method === "TOTP" ? api.disableTotp(v.password) : api.disableEmailTwoFactor(v.password),
+    onSuccess: refresh,
   });
 }
 

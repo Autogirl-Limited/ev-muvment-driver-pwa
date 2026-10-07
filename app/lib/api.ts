@@ -14,6 +14,7 @@ import type {
   DvaTransaction,
   FieldErrors,
   ImageType,
+  LoginChallenge,
   ManualChargeSession,
   Page,
   Paginated,
@@ -21,6 +22,9 @@ import type {
   PickupRequestInput,
   TodayChecklists,
   TopupPreview,
+  TotpSetup,
+  TwoFactorMethod,
+  TwoFactorMethods,
   WalletAllocation,
   UploadTarget,
   WalletStats,
@@ -81,6 +85,28 @@ function rangeQuery({ from, to }: DateRange) {
 const post = <T>(path: string, body?: unknown) =>
   request<T>(path, { method: "POST", body: body === undefined ? undefined : JSON.stringify(body) });
 
+/**
+ * The pending two-factor sign-in lives behind /api/login-challenge (its token
+ * stays in an httpOnly cookie), not the /api/v1 proxy.
+ */
+async function loginChallengeRequest(method: "GET" | "POST" | "DELETE", body?: unknown) {
+  let response: Response;
+  try {
+    response = await fetch("/api/login-challenge", {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch {
+    throw new ApiError(0, "You appear to be offline. Check your connection and try again.");
+  }
+  const payload = (await response.json().catch(() => null)) as ApiEnvelope<LoginChallenge> | null;
+  if (!response.ok || !payload || payload.status === "error") {
+    throw new ApiError(response.status, payload?.message ?? "Unexpected response from the server.");
+  }
+  return payload;
+}
+
 export const api = {
   async suggestUsernames(firstName: string, lastName: string) {
     const params = new URLSearchParams({ first_name: firstName, last_name: lastName });
@@ -104,6 +130,41 @@ export const api = {
   // The proxy attaches the access token from the session cookie.
   changePassword: (currentPassword: string, newPassword: string) =>
     post<null>("/auth/change-password", { current_password: currentPassword, new_password: newPassword }),
+
+  // ---- Two-factor sign-in ----
+
+  async loginChallenge() {
+    return (await loginChallengeRequest("GET")).data as LoginChallenge;
+  },
+
+  /** Switches the pending sign-in to `method`; with the current email method this resends the code. */
+  async switchLoginMethod(method: TwoFactorMethod) {
+    return (await loginChallengeRequest("POST", { method })).data as LoginChallenge;
+  },
+
+  cancelLoginChallenge: () => loginChallengeRequest("DELETE").catch(() => undefined),
+
+  // ---- Two-factor settings ----
+
+  async twoFactorMethods() {
+    return (await request<TwoFactorMethods>("/auth/2fa/methods")).data as TwoFactorMethods;
+  },
+
+  /** `null` clears the preference (the authenticator app is then asked for first). */
+  async setPreferredTwoFactorMethod(method: TwoFactorMethod | null) {
+    const response = await request<TwoFactorMethods>("/auth/2fa/preferred-method", { method: "PUT", body: JSON.stringify({ method }) });
+    return response.data as TwoFactorMethods;
+  },
+
+  requestEmailTwoFactor: () => post<null>("/auth/2fa/email/request"),
+  confirmEmailTwoFactor: (code: string) => post<null>("/auth/2fa/email/confirm", { code }),
+  disableEmailTwoFactor: (password: string) => post<null>("/auth/2fa/email/disable", { password }),
+
+  async setupTotp() {
+    return (await post<TotpSetup>("/auth/2mfa/totp/setup")).data as TotpSetup;
+  },
+  confirmTotp: (code: string) => post<null>("/auth/2mfa/totp/confirm", { code }),
+  disableTotp: (password: string) => post<null>("/auth/2mfa/totp/disable", { password }),
 
   // Stats endpoints. Omit the range for all-time totals; dates are YYYY-MM-DD, inclusive.
   async dvaStats(range: DateRange) {

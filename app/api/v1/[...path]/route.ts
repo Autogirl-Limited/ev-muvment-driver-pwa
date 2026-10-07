@@ -35,6 +35,14 @@ const ROUTES: Record<string, { methods: string[]; auth?: boolean }> = {
   "notifications/unread-count": { methods: ["GET"], auth: true },
   "notifications/read-all": { methods: ["POST"], auth: true },
   "users/me": { methods: ["GET"], auth: true },
+  "auth/2fa/methods": { methods: ["GET"], auth: true },
+  "auth/2fa/preferred-method": { methods: ["PUT"], auth: true },
+  "auth/2fa/email/request": { methods: ["POST"], auth: true },
+  "auth/2fa/email/confirm": { methods: ["POST"], auth: true },
+  "auth/2fa/email/disable": { methods: ["POST"], auth: true },
+  "auth/2mfa/totp/setup": { methods: ["POST"], auth: true },
+  "auth/2mfa/totp/confirm": { methods: ["POST"], auth: true },
+  "auth/2mfa/totp/disable": { methods: ["POST"], auth: true },
 };
 
 /** Routes with an id in the path. */
@@ -86,4 +94,4 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
   }
 }
 
-export { handle as GET, handle as POST, handle as PATCH };
+export { handle as GET, handle as POST, handle as PUT, handle as PATCH };

@@ -11,6 +11,7 @@ import { applyTheme, currentTheme } from "../lib/theme";
 
 const TITLES: Record<string, string> = {
   "/payment": "Payment",
+  "/leaderboard": "Leaderboard",
   "/charge": "Charge",
   "/checklist": "Checklist",
   "/checklist/pick-up": "Pick-up checklist",

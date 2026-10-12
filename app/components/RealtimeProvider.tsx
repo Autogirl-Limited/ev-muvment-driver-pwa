@@ -146,7 +146,11 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
         }
 
         case "dva_transaction.created":
-          return invalidate(queryClient, "dva-stats", "dva-transactions");
+          return invalidate(queryClient, "dva-stats", "dva-transactions", "leaderboard");
+
+        case "leaderboard.updated":
+          // Any driver on the fleet was just paid, so the day's ranking moved. Sent to everyone; carries only the date.
+          return invalidate(queryClient, "leaderboard");
 
         default:
           return; // new event types are added over time; ignore what we don't know
@@ -225,7 +229,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
         void connect();
       } else {
         // Coming back to the app: pick up anything that changed, including automatic charge refunds.
-        invalidate(queryClient, "daily-checklists-today", "pickup-requests-mine", "notifications-unread", "wallet-stats", "charge-sessions", "charge-session");
+        invalidate(queryClient, "daily-checklists-today", "pickup-requests-mine", "notifications-unread", "wallet-stats", "charge-sessions", "charge-session", "leaderboard");
       }
     };
 

@@ -16,6 +16,7 @@ const ROUTES: Record<string, { methods: string[]; auth?: boolean }> = {
   "auth/logout": { methods: ["POST"], auth: true },
   "dva-transactions/mine/stats": { methods: ["GET"], auth: true },
   "dva-transactions/mine": { methods: ["GET"], auth: true },
+  "leaderboards/daily": { methods: ["GET"], auth: true },
   "wallet-allocations/mine/stats": { methods: ["GET"], auth: true },
   "wallet-allocations/mine": { methods: ["GET"], auth: true },
   "wallet-allocations/topup-preview": { methods: ["GET"], auth: true },

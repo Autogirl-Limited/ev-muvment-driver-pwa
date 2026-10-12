@@ -422,6 +422,28 @@ export function useDvaTransactions(page: number, range: DateRange) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Leaderboard                                                         */
+/* ------------------------------------------------------------------ */
+const LEADERBOARD_REFRESH = 60_000;
+
+/**
+ * The daily ranking for one Nigeria calendar day. The `leaderboard.updated` socket event refreshes it the moment
+ * any driver is paid; the gentle poll is the safety net, and only runs while looking at today (yesterday is final).
+ */
+export function useLeaderboard(date: string, today: string) {
+  const { status } = useSession();
+  return useQuery({
+    queryKey: ["leaderboard", date],
+    queryFn: () => api.leaderboard(date),
+    enabled: status === "authenticated",
+    staleTime: 15_000,
+    refetchInterval: date === today ? LEADERBOARD_REFRESH : false,
+    refetchOnWindowFocus: true,
+    placeholderData: keepPreviousData, // switching day keeps the board on screen while the other one loads
+  });
+}
+
+/* ------------------------------------------------------------------ */
 /* Charging                                                            */
 /* ------------------------------------------------------------------ */
 export const CHARGES_PAGE_SIZE = 6;

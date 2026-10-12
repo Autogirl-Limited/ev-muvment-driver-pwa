@@ -322,3 +322,33 @@ export type WalletAllocation = {
 };
 
 export type TopupPreview = { amount: number; rate_per_kwh: number; kwh_equivalent: number };
+
+/* ------------------------------------------------------------------ */
+/* Leaderboard - ranked on transaction counts only, never amounts       */
+/* ------------------------------------------------------------------ */
+export type LeaderboardEntry = {
+  rank: number; // tied drivers share a rank
+  user_id: string;
+  display_name: string; // "Chidi O."
+  username: string;
+  transaction_count: number;
+  last_transaction_at: string;
+  is_me: boolean;
+};
+
+export type MyStanding = {
+  rank: number | null; // null = no transactions that day, not on the board
+  transaction_count: number;
+  behind_leader: number;
+  behind_next: number | null;
+};
+
+export type Leaderboard = {
+  date: string; // YYYY-MM-DD, Nigeria calendar day
+  generated_at: string;
+  is_today: boolean;
+  entries: LeaderboardEntry[];
+  ranked_drivers: number;
+  total_transactions: number;
+  me: MyStanding;
+};

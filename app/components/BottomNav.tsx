@@ -3,11 +3,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ClipboardCheck, House, WalletCards, Zap } from "lucide-react";
+import { ClipboardCheck, House, Trophy, WalletCards, Zap } from "lucide-react";
 
 const TABS = [
   { href: "/", label: "Home", icon: House },
   { href: "/payment", label: "Payment", icon: WalletCards },
+  { href: "/leaderboard", label: "Leaderboard", icon: Trophy },
   { href: "/charge", label: "Charge", icon: Zap },
   { href: "/checklist", label: "Checklist", icon: ClipboardCheck },
 ];

@@ -14,6 +14,7 @@ import type {
   DvaTransaction,
   FieldErrors,
   ImageType,
+  Leaderboard,
   LoginChallenge,
   ManualChargeSession,
   Page,
@@ -165,6 +166,12 @@ export const api = {
   },
   confirmTotp: (code: string) => post<null>("/auth/2mfa/totp/confirm", { code }),
   disableTotp: (password: string) => post<null>("/auth/2mfa/totp/disable", { password }),
+
+  /** Who received the most transfers on one day (YYYY-MM-DD, defaults to today). Counts only - no amounts. */
+  async leaderboard(date?: string) {
+    const query = date ? `?date=${date}` : "";
+    return (await request<Leaderboard>(`/leaderboards/daily${query}`)).data as Leaderboard;
+  },
 
   // Stats endpoints. Omit the range for all-time totals; dates are YYYY-MM-DD, inclusive.
   async dvaStats(range: DateRange) {

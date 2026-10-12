@@ -2,6 +2,7 @@
 
 import { useSession } from "next-auth/react";
 import { DailyJourney } from "../components/DailyJourney";
+import { LeaderboardTeaser } from "../components/leaderboard/LeaderboardTeaser";
 import { StatsCarousel } from "../components/StatsCarousel";
 
 export default function HomePage() {
@@ -12,6 +13,7 @@ export default function HomePage() {
     <div className="screen-enter">
       <section className="home">
         <StatsCarousel />
+        <LeaderboardTeaser />
         <DailyJourney />
       </section>
     </div>

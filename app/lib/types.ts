@@ -9,6 +9,8 @@ export type ApiEnvelope<T> = {
 };
 
 export type VirtualAccount = {
+  /** The gateway behind this account: MONNIFY, or PAYSTACK for the Wema Bank one. */
+  provider?: string;
   account_name: string;
   account_number: string;
   bank_name: string;
@@ -83,9 +85,12 @@ export type LoginData = {
     totp_enabled?: boolean;
     preferred_two_factor_method?: TwoFactorMethod | null;
     virtual_account?: VirtualAccount | null;
+    virtual_accounts?: VirtualAccount[];
     vehicle?: Vehicle | null;
   };
   virtual_account: VirtualAccount | null;
+  /** Every account the driver can be paid into, one per gateway, primary (`virtual_account`) first. */
+  virtual_accounts?: VirtualAccount[];
   vehicle: Vehicle | null;
 };
 

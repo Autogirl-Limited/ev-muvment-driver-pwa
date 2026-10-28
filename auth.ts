@@ -117,6 +117,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           dva_transaction_count: data.dva_transaction_count,
           user: data.user,
           virtual_account: data.virtual_account,
+          virtual_accounts: data.virtual_accounts ?? [],
           vehicle: data.vehicle,
         };
       }
@@ -139,6 +140,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               user: { ...token.profile.user, ...fresh },
               vehicle: fresh.vehicle ?? null,
               virtual_account: fresh.virtual_account ?? token.profile.virtual_account,
+              virtual_accounts: fresh.virtual_accounts ?? token.profile.virtual_accounts,
             };
           }
         } catch {

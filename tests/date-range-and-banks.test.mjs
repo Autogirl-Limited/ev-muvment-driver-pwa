@@ -46,3 +46,12 @@ test("combine account sources, deduplicate aliases, and keep identical numbers a
   assert.ok(accounts.every((a) => a.account_name === "Test Driver"));
   assert.deepEqual(paymentAccounts({ virtual_account: null, user: {} }), []);
 });
+
+test("list every gateway's account, primary first, without repeating the primary", () => {
+  const monnify = { provider: "MONNIFY", bank_name: "Wema Bank", account_number: "5000000001", account_name: "Ada Obi / Autogirl",
+    banks: [{ bank_name: "Wema Bank", account_number: "5000000001" }, { bank_name: "Sterling Bank", account_number: "8000000001" }] };
+  const paystack = { provider: "PAYSTACK", bank_name: "Wema Bank", account_number: "9930000001", account_name: "Ada Obi / Autogirl",
+    banks: [{ bank_name: "Wema Bank", account_number: "9930000001" }] };
+  const profile = { virtual_account: monnify, virtual_accounts: [monnify, paystack], user: { virtual_account: monnify } };
+  assert.deepEqual(paymentAccounts(profile).map((a) => a.account_number), ["5000000001", "8000000001", "9930000001"]);
+});

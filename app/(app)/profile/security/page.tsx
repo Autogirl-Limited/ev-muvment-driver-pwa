@@ -1,22 +1,33 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Copy, KeyRound, Mail, ShieldCheck, Smartphone } from "lucide-react";
+import { Copy, FingerprintPattern, KeyRound, Mail, ShieldCheck, Smartphone } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { toast } from "sonner";
 import { SegmentedControl, TextField } from "../../../components/FormControls";
 import { Modal } from "../../../components/Modal";
 import { Spinner } from "../../../components/Ui";
 import {
+  biometricLabel,
+  deviceHasPasskey,
+  isAlreadyRegistered,
+  passkeyErrorMessage,
+  passkeysSupported,
+  setDeviceHasPasskey,
+} from "../../../lib/passkey";
+import {
+  useAddPasskey,
   useConfirmTwoFactor,
   useDisableTwoFactor,
+  usePasskeys,
+  useRemovePasskey,
   useRequestEmailTwoFactor,
   useSetPreferredTwoFactorMethod,
   useSetupTotp,
   useTwoFactorMethods,
 } from "../../../lib/queries";
-import type { TotpSetup, TwoFactorMethod, TwoFactorMethodOption } from "../../../lib/types";
+import type { Passkey, TotpSetup, TwoFactorMethod, TwoFactorMethodOption } from "../../../lib/types";
 
 const ICONS = { TOTP: Smartphone, EMAIL_OTP: Mail } as const;
 
@@ -48,6 +59,8 @@ export default function SecurityPage() {
   return (
     <div className="screen-enter">
       <section className="home">
+        <PasskeySection />
+
         <p className="sec-intro">
           Add a second step when you sign in, so your account stays safe even if someone learns your password.
         </p>
@@ -292,6 +305,126 @@ function DisableDialog({ method, onClose }: { method: TwoFactorMethod; onClose: 
           <button className="ghost-button" disabled={busy} type="button" onClick={onClose}>Cancel</button>
         </div>
       </form>
+    </Modal>
+  );
+}
+
+const shortDate = (value: string) =>
+  new Date(value).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" });
+
+/** Fingerprint / face sign-in: turn it on for this phone, see and remove the devices that have it. */
+function PasskeySection() {
+  const passkeys = usePasskeys();
+  const add = useAddPasskey();
+  const [supported, setSupported] = useState<boolean | null>(null);
+  const [onThisPhone, setOnThisPhone] = useState(false);
+  const [removing, setRemoving] = useState<Passkey | null>(null);
+  // Device-specific, so only known after mount (the server renders the generic name).
+  const [sensor, setSensor] = useState("fingerprint");
+  const items = passkeys.data ?? [];
+
+  useEffect(() => {
+    void passkeysSupported().then((ok) => {
+      setSupported(ok);
+      setOnThisPhone(deviceHasPasskey());
+      setSensor(biometricLabel());
+    });
+  }, []);
+
+  function turnOn() {
+    add.mutate(undefined, {
+      onSuccess: () => {
+        setOnThisPhone(true);
+        toast.success(`Done. Next time, sign in with ${sensor}.`);
+      },
+      onError: (error) => {
+        if (isAlreadyRegistered(error)) {
+          setDeviceHasPasskey(true);
+          setOnThisPhone(true);
+        }
+        const message = passkeyErrorMessage(error);
+        if (message) toast.error(message);
+      },
+    });
+  }
+
+  const status = items.length ? (onThisPhone ? "On for this phone" : "On for another device") : "Off";
+
+  return (
+    <section className="panel list-panel" aria-busy={passkeys.isLoading}>
+      <div className="list-row sec-row">
+        <span className="list-icon"><FingerprintPattern size={18} /></span>
+        <div>
+          <strong>Sign in with {sensor}</strong>
+          <small>
+            {supported === false
+              ? "This phone can’t use fingerprint or face sign-in."
+              : "Skip typing your password. Your fingerprint or face stays on your phone, we never see it."}
+          </small>
+          <span className={`pill sec-pill ${items.length ? "pill-live" : ""}`}><i /> {status}</span>
+        </div>
+        {supported && !onThisPhone ? (
+          <button className="sec-action" disabled={add.isPending} type="button" onClick={turnOn}>
+            {add.isPending ? <Spinner /> : null} Turn on
+          </button>
+        ) : null}
+      </div>
+      {items.map((item) => (
+        <div className="list-row sec-row" key={item.id}>
+          <span className="list-icon"><Smartphone size={18} /></span>
+          <div>
+            <strong>{item.name}</strong>
+            <small>{item.last_used_at ? `Last used ${shortDate(item.last_used_at)}` : `Added ${shortDate(item.created_at)}`}</small>
+          </div>
+          <button className="sec-action danger" type="button" onClick={() => setRemoving(item)}>Remove</button>
+        </div>
+      ))}
+      {removing ? (
+        <RemovePasskeyDialog
+          passkey={removing}
+          onClose={() => setRemoving(null)}
+          onRemoved={(remaining) => {
+            setRemoving(null);
+            // We can't tell which device a passkey belongs to, but with none left this phone has none either.
+            if (!remaining) {
+              setDeviceHasPasskey(false);
+              setOnThisPhone(false);
+            }
+          }}
+        />
+      ) : null}
+    </section>
+  );
+}
+
+function RemovePasskeyDialog({ passkey, onClose, onRemoved }: { passkey: Passkey; onClose: () => void; onRemoved: (remaining: number) => void }) {
+  const remove = useRemovePasskey();
+  const passkeys = usePasskeys();
+  const busy = remove.isPending;
+
+  function confirm() {
+    remove.mutate(passkey.id, {
+      onSuccess: () => {
+        toast.success(`Removed ${passkey.name}.`);
+        onRemoved((passkeys.data?.length ?? 1) - 1);
+      },
+      onError: (error) => toast.error(error.message),
+    });
+  }
+
+  return (
+    <Modal dismissible={!busy} label={`Remove ${passkey.name}`} open onClose={onClose}>
+      <div className="confirm">
+        <span className="confirm-icon danger"><FingerprintPattern size={26} /></span>
+        <h2>Remove {passkey.name}?</h2>
+        <p>That device will need your password to sign in again.</p>
+        <div className="confirm-actions">
+          <button className="primary-button danger" disabled={busy} type="button" onClick={confirm}>
+            {busy ? <Spinner /> : null} Remove
+          </button>
+          <button className="ghost-button" disabled={busy} type="button" onClick={onClose}>Cancel</button>
+        </div>
+      </div>
     </Modal>
   );
 }

@@ -19,6 +19,8 @@ import type {
   ManualChargeSession,
   Page,
   Paginated,
+  Passkey,
+  PasskeyOptions,
   PickupRequest,
   PickupRequestInput,
   TodayChecklists,
@@ -144,6 +146,28 @@ export const api = {
   },
 
   cancelLoginChallenge: () => loginChallengeRequest("DELETE").catch(() => undefined),
+
+  // ---- Fingerprint / face sign-in (passkeys) ----
+
+  async passkeyLoginOptions() {
+    return (await post<PasskeyOptions>("/auth/login/passkey/options", { origin: window.location.origin })).data as PasskeyOptions;
+  },
+
+  /** Only this app's passkeys - the admin keeps its own. */
+  async passkeys() {
+    const params = new URLSearchParams({ origin: window.location.origin });
+    return (await request<Passkey[]>(`/auth/passkeys?${params}`)).data ?? [];
+  },
+
+  async passkeyRegistrationOptions() {
+    return (await post<PasskeyOptions>("/auth/passkeys/register/options", { origin: window.location.origin })).data as PasskeyOptions;
+  },
+
+  async registerPasskey(challengeId: string, credential: Record<string, unknown>, name: string) {
+    return (await post<Passkey>("/auth/passkeys/register", { challenge_id: challengeId, credential, name })).data as Passkey;
+  },
+
+  removePasskey: (id: string) => request<null>(`/auth/passkeys/${id}`, { method: "DELETE" }),
 
   // ---- Two-factor settings ----
 

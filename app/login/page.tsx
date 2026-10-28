@@ -3,13 +3,14 @@
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Lock, ShieldCheck, User } from "lucide-react";
+import { ArrowRight, FingerprintPattern, Lock, ShieldCheck, User } from "lucide-react";
 import type { Session } from "next-auth";
 import { toast } from "sonner";
 import { TextField } from "../components/FormControls";
 import { ScreenBar, ScreenTitle, Spinner } from "../components/Ui";
 import { api, ApiError } from "../lib/api";
-import { useLogin, useSwitchLoginMethod, useVerifyLoginCode } from "../lib/queries";
+import { biometricLabel, deviceHasPasskey, passkeyErrorMessage, passkeysSupported, setDeviceHasPasskey } from "../lib/passkey";
+import { useLogin, usePasskeyLogin, useSwitchLoginMethod, useVerifyLoginCode } from "../lib/queries";
 import { saveTemporaryPassword } from "../lib/temp-password";
 import type { LoginChallenge, TwoFactorMethod } from "../lib/types";
 
@@ -25,11 +26,18 @@ export default function LoginPage() {
   const login = useLogin();
   const verify = useVerifyLoginCode();
   const switchMethod = useSwitchLoginMethod();
+  const passkeyLogin = usePasskeyLogin();
+  // "ready": this phone was set up for fingerprint sign-in, so offer it first.
+  const [fingerprint, setFingerprint] = useState<"unsupported" | "available" | "ready">("unsupported");
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [challenge, setChallenge] = useState<LoginChallenge | null>(null);
   const [code, setCode] = useState("");
   const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    void passkeysSupported().then((ok) => setFingerprint(!ok ? "unsupported" : deviceHasPasskey() ? "ready" : "available"));
+  }, []);
 
   useEffect(() => {
     if (!cooldown) return;
@@ -38,7 +46,7 @@ export default function LoginPage() {
   }, [cooldown]);
 
   function finish(session: Session | null) {
-    if (session && !session.hasChangedTemporaryPassword) saveTemporaryPassword(password);
+    if (session && !session.hasChangedTemporaryPassword && password) saveTemporaryPassword(password);
     router.replace(session?.hasChangedTemporaryPassword === false ? "/change-password" : "/");
     router.refresh();
   }
@@ -64,6 +72,21 @@ export default function LoginPage() {
         onError: (error) => toast.error(error.message),
       },
     );
+  }
+
+  function handlePasskey() {
+    passkeyLogin.mutate(undefined, {
+      onSuccess: finish,
+      onError: (error) => {
+        // The phone's passkey was removed (here or on another device): fall back to the password.
+        if (error.message.includes("isn't set up")) {
+          setDeviceHasPasskey(false);
+          setFingerprint("available");
+        }
+        const message = passkeyErrorMessage(error);
+        if (message) toast.error(message);
+      },
+    });
   }
 
   function handleVerify(event: FormEvent) {
@@ -145,13 +168,27 @@ export default function LoginPage() {
     );
   }
 
-  const busy = login.isPending || (login.isSuccess && login.data.status === "signed-in");
+  const passkeyBusy = passkeyLogin.isPending || passkeyLogin.isSuccess;
+  const busy = login.isPending || (login.isSuccess && login.data.status === "signed-in") || passkeyBusy;
+  const sensor = biometricLabel();
+  const passkeyButton = (primary: boolean) => (
+    <button className={primary ? "primary-button" : "ghost-button"} disabled={busy} type="button" onClick={handlePasskey}>
+      {passkeyBusy ? <Spinner /> : <FingerprintPattern size={20} />}
+      {passkeyBusy ? "Checking…" : primary ? `Sign in with ${sensor}` : `Use ${sensor}`}
+    </button>
+  );
 
   return (
     <div className="screen-enter">
       <ScreenBar />
       <form autoComplete="off" className="form" onSubmit={handleSubmit}>
         <ScreenTitle title="Welcome back">Sign in to your driver account.</ScreenTitle>
+        {fingerprint === "ready" ? (
+          <>
+            {passkeyButton(true)}
+            <p className="auth-divider"><span>or use your password</span></p>
+          </>
+        ) : null}
         <TextField autoCapitalize="none" icon={<User size={18} />} label="Username, email or phone" placeholder="chinedu.okafor" required value={identifier} onChange={(e) => setIdentifier(e.target.value)} />
         <TextField
           action={<Link className="link-button" href="/forgot-password">Forgot password?</Link>}
@@ -164,11 +201,12 @@ export default function LoginPage() {
           onChange={(e) => setPassword(e.target.value)}
         />
         <div className="form-actions">
-          <button className="primary-button" disabled={busy} type="submit">
-            {busy ? <Spinner /> : null}
-            {busy ? "Signing in…" : "Sign in"}
-            {!busy ? <ArrowRight size={18} /> : null}
+          <button className={fingerprint === "ready" ? "ghost-button" : "primary-button"} disabled={busy} type="submit">
+            {login.isPending ? <Spinner /> : null}
+            {login.isPending ? "Signing in…" : "Sign in"}
+            {!login.isPending ? <ArrowRight size={18} /> : null}
           </button>
+          {fingerprint === "available" ? passkeyButton(false) : null}
           <Link className="text-button" href="/apply">
             New driver? <strong>Apply to drive</strong>
           </Link>

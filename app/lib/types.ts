@@ -357,3 +357,9 @@ export type Leaderboard = {
   total_transactions: number;
   me: MyStanding;
 };
+
+/** WebAuthn options from the API for the browser, plus the id to send back with the answer. */
+export type PasskeyOptions = { challenge_id: string; options: Record<string, unknown> };
+
+/** One device set up for fingerprint / face sign-in. */
+export type Passkey = { id: string; name: string; created_at: string; last_used_at: string | null };

@@ -37,6 +37,11 @@ const ROUTES: Record<string, { methods: string[]; auth?: boolean }> = {
   "notifications/read-all": { methods: ["POST"], auth: true },
   "users/me": { methods: ["GET"], auth: true },
   "auth/2fa/methods": { methods: ["GET"], auth: true },
+  // Fingerprint sign-in. The last step (/auth/login/passkey) goes through NextAuth, which keeps the tokens.
+  "auth/login/passkey/options": { methods: ["POST"] },
+  "auth/passkeys": { methods: ["GET"], auth: true },
+  "auth/passkeys/register/options": { methods: ["POST"], auth: true },
+  "auth/passkeys/register": { methods: ["POST"], auth: true },
   "auth/2fa/preferred-method": { methods: ["PUT"], auth: true },
   "auth/2fa/email/request": { methods: ["POST"], auth: true },
   "auth/2fa/email/confirm": { methods: ["POST"], auth: true },
@@ -53,6 +58,7 @@ const PATTERNS: [RegExp, { methods: string[]; auth?: boolean }][] = [
   [new RegExp(`^daily-checklists/${ID}/(uploads|images|submit|reanalyze)$`), { methods: ["POST"], auth: true }],
   [new RegExp(`^daily-checklists/${ID}/dashboard$`), { methods: ["PATCH"], auth: true }],
   [new RegExp(`^notifications/${ID}/read$`), { methods: ["PATCH"], auth: true }],
+  [new RegExp(`^auth/passkeys/${ID}$`), { methods: ["DELETE"], auth: true }],
   [new RegExp(`^wallet-allocations/${ID}$`), { methods: ["GET"], auth: true }],
   [new RegExp(`^charge-sessions/${ID}$`), { methods: ["GET"], auth: true }],
   // Provider session ids (e.g. sess_9f3ac2e1), not UUIDs.
@@ -95,4 +101,4 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
   }
 }
 
-export { handle as GET, handle as POST, handle as PUT, handle as PATCH };
+export { handle as GET, handle as POST, handle as PUT, handle as PATCH, handle as DELETE };

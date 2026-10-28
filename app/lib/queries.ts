@@ -5,6 +5,7 @@ import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClie
 import { signIn, signOut, useSession } from "next-auth/react";
 import { api, ApiError, type DateRange } from "./api";
 import { getPosition } from "./geo";
+import { createPasskey, deviceName, getPasskey, setDeviceHasPasskey } from "./passkey";
 import { TWO_FACTOR_REQUIRED, type ChecklistPhaseName, type DailyChecklist, type DashboardReading, type LoginChallenge, type PickupRequestInput, type TwoFactorMethod } from "./types";
 import type { AppNotification, ChargeSession, ManualChargeSession, Page, TodayChecklists, WalletStats } from "./types";
 
@@ -98,6 +99,55 @@ export function useVerifyLoginCode() {
 
 /** "Use another method" and "Resend code" on the verification step. */
 export const useSwitchLoginMethod = () => useMutation({ mutationFn: (method: TwoFactorMethod) => api.switchLoginMethod(method) });
+
+// ---- Fingerprint / face sign-in (passkeys) ----
+
+/** Asks the device for a fingerprint or face, then signs in with it - no password or code. */
+export function usePasskeyLogin() {
+  const { update } = useSession();
+  return useMutation({
+    mutationFn: async () => {
+      const { challenge_id, options } = await api.passkeyLoginOptions();
+      const credential = await getPasskey(options);
+      const result = await signIn("credentials", { passkey: JSON.stringify({ challenge_id, credential }), redirect: false });
+      if (!result || result.error) {
+        const message = result?.code && result.code !== "credentials" ? result.code : "We couldn’t confirm it’s you. Try again or use your password.";
+        throw new ApiError(401, message);
+      }
+      setDeviceHasPasskey(true);
+      return update();
+    },
+  });
+}
+
+const PASSKEYS_KEY = ["passkeys"];
+
+export function usePasskeys() {
+  const { status } = useSession();
+  return useQuery({ queryKey: PASSKEYS_KEY, queryFn: () => api.passkeys(), enabled: status === "authenticated", staleTime: 30_000 });
+}
+
+/** Sets up fingerprint sign-in on this phone (the device shows its own prompt). */
+export function useAddPasskey() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { challenge_id, options } = await api.passkeyRegistrationOptions();
+      const credential = await createPasskey(options);
+      return api.registerPasskey(challenge_id, credential, deviceName());
+    },
+    onSuccess: () => setDeviceHasPasskey(true),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: PASSKEYS_KEY }),
+  });
+}
+
+export function useRemovePasskey() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.removePasskey(id),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: PASSKEYS_KEY }),
+  });
+}
 
 // ---- Two-factor settings ----
 

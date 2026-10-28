@@ -82,17 +82,33 @@ async function twoFactorSignIn(code: unknown) {
   return data;
 }
 
+/** Fingerprint / face: the device already proved who it is, so no password or code follows. */
+async function passkeySignIn(raw: unknown) {
+  let answer: { challenge_id?: unknown; credential?: unknown };
+  try {
+    answer = JSON.parse(String(raw));
+  } catch {
+    throw new LoginError("Unable to sign in");
+  }
+  const data = await callBackend("/auth/login/passkey", { challenge_id: answer.challenge_id, credential: answer.credential });
+  if (data.status !== "success") throw new LoginError("Unable to sign in");
+  await clearLoginChallenge();
+  return data;
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
   session: { strategy: "jwt", maxAge: 60 * 60 * 24 * 30 },
   pages: { signIn: "/login" },
   providers: [
     Credentials({
-      credentials: { identifier: {}, password: {}, code: {} },
+      credentials: { identifier: {}, password: {}, code: {}, passkey: {} },
       async authorize(credentials) {
-        const data = credentials?.code
-          ? await twoFactorSignIn(credentials.code)
-          : await passwordSignIn(credentials?.identifier, credentials?.password);
+        const data = credentials?.passkey
+          ? await passkeySignIn(credentials.passkey)
+          : credentials?.code
+            ? await twoFactorSignIn(credentials.code)
+            : await passwordSignIn(credentials?.identifier, credentials?.password);
         return {
           id: data.user.id,
           name: `${data.user.first_name} ${data.user.last_name}`,

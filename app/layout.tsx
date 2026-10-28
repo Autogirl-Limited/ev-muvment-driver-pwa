@@ -15,6 +15,14 @@ const roboto = Roboto({
 export const metadata: Metadata = {
   title: "EV Muvment Driver",
   description: "Driver application and authentication PWA for EV Muvment.",
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "any" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
+  applicationName: "EV Driver",
   appleWebApp: {
     capable: true,
     // "default" keeps the iOS status bar opaque with text that follows light/dark. "black-translucent"

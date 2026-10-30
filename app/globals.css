@@ -6129,3 +6129,51 @@ dialog.modal::backdrop {
   line-height: 1.45;
   text-align: center;
 }
+
+/* ------------------------------------------------------------------ */
+/* BVN / NIN prompt                                                    */
+/* ------------------------------------------------------------------ */
+.kyc-form .segmented-group,
+.kyc-form .field {
+  width: 100%;
+  text-align: left;
+}
+
+.kyc-hint {
+  width: 100%;
+  margin-top: -0.2rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+  text-align: left;
+}
+
+.kyc-form .passkey-note svg {
+  display: inline;
+  vertical-align: -1px;
+}
+
+button.list-row {
+  width: 100%;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.list-icon-warn {
+  background: color-mix(in srgb, #d97706 14%, transparent);
+  color: #d97706;
+}
+
+.pill-warn {
+  border-color: color-mix(in srgb, #d97706 35%, var(--line));
+  background: color-mix(in srgb, #d97706 12%, transparent);
+  color: #d97706;
+}
+
+.kyc-banner {
+  border: 1.5px solid color-mix(in srgb, #d97706 35%, var(--line));
+  background: color-mix(in srgb, #d97706 7%, var(--surface));
+}

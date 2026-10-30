@@ -36,6 +36,8 @@ const ROUTES: Record<string, { methods: string[]; auth?: boolean }> = {
   "notifications/unread-count": { methods: ["GET"], auth: true },
   "notifications/read-all": { methods: ["POST"], auth: true },
   "users/me": { methods: ["GET"], auth: true },
+  // Whether the driver's BVN / NIN is on file, and adding it. The numbers are never sent back.
+  "users/me/kyc": { methods: ["GET", "PUT"], auth: true },
   "auth/2fa/methods": { methods: ["GET"], auth: true },
   // Fingerprint sign-in. The last step (/auth/login/passkey) goes through NextAuth, which keeps the tokens.
   "auth/login/passkey/options": { methods: ["POST"] },

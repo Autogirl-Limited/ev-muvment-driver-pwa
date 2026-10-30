@@ -31,6 +31,7 @@ import type {
   WalletAllocation,
   UploadTarget,
   WalletStats,
+  KycStatus,
 } from "./types";
 
 export type { FieldErrors };
@@ -168,6 +169,16 @@ export const api = {
   },
 
   removePasskey: (id: string) => request<null>(`/auth/passkeys/${id}`, { method: "DELETE" }),
+
+  // ---- BVN / NIN (needed for the driver's bank account) ----
+
+  async kycStatus() {
+    return (await request<KycStatus>("/users/me/kyc")).data as KycStatus;
+  },
+
+  async saveKyc(body: { bvn?: string; nin?: string }) {
+    return (await request<KycStatus>("/users/me/kyc", { method: "PUT", body: JSON.stringify(body) })).data as KycStatus;
+  },
 
   // ---- Two-factor settings ----
 

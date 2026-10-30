@@ -3,12 +3,16 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { AtSign, ChevronRight, LogOut, Mail, Phone, ShieldCheck, User } from "lucide-react";
+import { AtSign, ChevronRight, IdCard, LogOut, Mail, Phone, ShieldCheck, User } from "lucide-react";
+import { KycDialog } from "../../components/KycPrompt";
 import { LogoutDialog } from "../../components/LogoutDialog";
+import { useKycStatus } from "../../lib/queries";
 
 export default function ProfilePage() {
   const { data: session } = useSession();
   const [confirmingLogout, setConfirmingLogout] = useState(false);
+  const [addingKyc, setAddingKyc] = useState(false);
+  const { data: kyc } = useKycStatus();
   const user = session?.profile?.user;
   if (!user) return null;
 
@@ -43,6 +47,14 @@ export default function ProfilePage() {
         </section>
 
         <section className="panel list-panel">
+          <button className="list-row sec-link" type="button" onClick={() => setAddingKyc(true)}>
+            <span className={`list-icon ${kyc && !kyc.has_kyc ? "list-icon-warn" : ""}`}><IdCard size={18} /></span>
+            <div>
+              <small>BVN / NIN</small>
+              <strong>{kycSummary(kyc)}</strong>
+            </div>
+            {kyc && !kyc.has_kyc ? <span className="pill pill-warn">Needed</span> : <ChevronRight size={18} />}
+          </button>
           <Link className="list-row sec-link" href="/profile/security">
             <span className="list-icon"><ShieldCheck size={18} /></span>
             <div>
@@ -57,7 +69,16 @@ export default function ProfilePage() {
           <LogOut size={18} /> Log out
         </button>
         <LogoutDialog open={confirmingLogout} onClose={() => setConfirmingLogout(false)} />
+        <KycDialog open={addingKyc} onClose={() => setAddingKyc(false)} />
       </section>
     </div>
   );
+}
+
+function kycSummary(kyc: { has_bvn: boolean; has_nin: boolean } | undefined) {
+  if (!kyc) return "Checking...";
+  if (kyc.has_bvn && kyc.has_nin) return "BVN and NIN saved";
+  if (kyc.has_bvn) return "BVN saved";
+  if (kyc.has_nin) return "NIN saved";
+  return "Add your BVN or NIN";
 }

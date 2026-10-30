@@ -149,6 +149,23 @@ export function useRemovePasskey() {
   });
 }
 
+// ---- BVN / NIN ----
+
+const KYC_KEY = ["kyc-status"];
+
+export function useKycStatus() {
+  const { status } = useSession();
+  return useQuery({ queryKey: KYC_KEY, queryFn: () => api.kycStatus(), enabled: status === "authenticated", staleTime: 60_000 });
+}
+
+export function useSaveKyc() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { bvn?: string; nin?: string }) => api.saveKyc(body),
+    onSuccess: (kyc) => queryClient.setQueryData(KYC_KEY, kyc),
+  });
+}
+
 // ---- Two-factor settings ----
 
 const TWO_FACTOR_KEY = ["two-factor-methods"];

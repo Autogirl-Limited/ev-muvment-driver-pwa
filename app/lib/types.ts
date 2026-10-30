@@ -363,3 +363,10 @@ export type PasskeyOptions = { challenge_id: string; options: Record<string, unk
 
 /** One device set up for fingerprint / face sign-in. */
 export type Passkey = { id: string; name: string; created_at: string; last_used_at: string | null };
+
+/** Whether the driver's BVN / NIN is on file. The numbers themselves are never sent back. */
+export type KycStatus = {
+  has_bvn: boolean;
+  has_nin: boolean;
+  has_kyc: boolean;
+};
